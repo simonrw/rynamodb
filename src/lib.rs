@@ -3,11 +3,17 @@ use std::future::Future;
 use axum::{
     http::{HeaderMap, Method, Uri},
     response::IntoResponse,
-    routing::{any, get},
+    routing::any,
     Router,
 };
 
-pub async fn run_server<F>(router: Router, f: F) -> Result<(), Box<dyn std::error::Error>>
+pub async fn run_server(router: Router, port: u16) -> Result<(), Box<dyn std::error::Error>> {
+    let addr = format!("127.0.0.1:{port}").parse().unwrap();
+    let server = axum::Server::bind(&addr).serve(router.into_make_service());
+    server.await.map_err(From::from)
+}
+
+pub async fn test_run_server<F>(router: Router, f: F) -> Result<(), Box<dyn std::error::Error>>
 where
     F: FnOnce(u16) -> Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>> + Unpin>,
 {

@@ -8,7 +8,7 @@ use aws_sdk_dynamodb::{
 #[tokio::test]
 async fn create_table() {
     let router = rynamodb::router();
-    rynamodb::run_server(router, |port| {
+    rynamodb::test_run_server(router, |port| {
         Box::new(Box::pin(async move {
             let endpoint_url = format!("http://127.0.0.1:{port}");
             let client = create_client(&endpoint_url).await;
