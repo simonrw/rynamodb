@@ -7,6 +7,7 @@ use aws_sdk_dynamodb::{
     output::CreateTableOutput,
     Client,
 };
+use eyre::{Context, Result};
 
 async fn test_client(port: u16) -> Client {
     if std::env::var("TEST_TARGET").unwrap_or_else(|_| String::new()) == "AWS_CLOUD" {
@@ -20,7 +21,7 @@ async fn test_client(port: u16) -> Client {
     }
 }
 
-async fn default_dynamodb_table(table_name: &str, client: &Client) -> CreateTableOutput {
+async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<CreateTableOutput> {
     let pk_ad = AttributeDefinition::builder()
         .attribute_name("pk")
         .attribute_type(ScalarAttributeType::S)
@@ -46,7 +47,7 @@ async fn default_dynamodb_table(table_name: &str, client: &Client) -> CreateTabl
         .write_capacity_units(10)
         .build();
 
-    let res = client
+    match client
         .create_table()
         .table_name(table_name)
         .key_schema(pk_ks)
@@ -56,9 +57,12 @@ async fn default_dynamodb_table(table_name: &str, client: &Client) -> CreateTabl
         .provisioned_throughput(pt)
         .send()
         .await
-        .unwrap();
+    {
+        Ok(_) => todo!(),
+        Err(e) => eyre::bail!("bad: {e:?}"),
+    }
 
-    res
+    todo!()
 }
 
 async fn with_table<F>(
@@ -76,7 +80,10 @@ where
 }
 
 #[tokio::test]
-async fn create_table() {
+async fn create_table() -> Result<()> {
+    color_eyre::install().unwrap();
+    tracing_subscriber::fmt::init();
+
     let router = rynamodb::router();
     rynamodb::test_run_server(router, |port| {
         Box::new(Box::pin(async move {
@@ -117,15 +124,17 @@ async fn create_table() {
                 .provisioned_throughput(pt)
                 .send()
                 .await
-                .unwrap();
+                .wrap_err("sending request")?;
 
+            // TODO: handle the arn
             insta::assert_debug_snapshot!(res);
 
             Ok(())
         }))
     })
     .await
-    .unwrap();
+    .expect("running test server framework");
+    Ok(())
 }
 
 // #[tokio::test]
