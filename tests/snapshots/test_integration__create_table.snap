@@ -1,0 +1,101 @@
+---
+source: tests/test_integration.rs
+expression: res
+---
+CreateTableOutput {
+    table_description: Some(
+        TableDescription {
+            attribute_definitions: Some(
+                [
+                    AttributeDefinition {
+                        attribute_name: Some(
+                            "pk",
+                        ),
+                        attribute_type: Some(
+                            S,
+                        ),
+                    },
+                    AttributeDefinition {
+                        attribute_name: Some(
+                            "sk",
+                        ),
+                        attribute_type: Some(
+                            S,
+                        ),
+                    },
+                ],
+            ),
+            table_name: Some(
+                "table",
+            ),
+            key_schema: Some(
+                [
+                    KeySchemaElement {
+                        attribute_name: Some(
+                            "pk",
+                        ),
+                        key_type: Some(
+                            Hash,
+                        ),
+                    },
+                    KeySchemaElement {
+                        attribute_name: Some(
+                            "sk",
+                        ),
+                        key_type: Some(
+                            Range,
+                        ),
+                    },
+                ],
+            ),
+            table_status: Some(
+                Creating,
+            ),
+            creation_date_time: Some(
+                DateTime {
+                    seconds: 1677604318,
+                    subsecond_nanos: 355999946,
+                },
+            ),
+            provisioned_throughput: Some(
+                ProvisionedThroughputDescription {
+                    last_increase_date_time: None,
+                    last_decrease_date_time: None,
+                    number_of_decreases_today: Some(
+                        0,
+                    ),
+                    read_capacity_units: Some(
+                        10,
+                    ),
+                    write_capacity_units: Some(
+                        10,
+                    ),
+                },
+            ),
+            table_size_bytes: Some(
+                0,
+            ),
+            item_count: Some(
+                0,
+            ),
+            table_arn: Some(
+                "arn:aws:dynamodb:eu-west-2:678133472802:table/table",
+            ),
+            table_id: Some(
+                "d3558043-d3a6-42a5-b3cb-feca1edb1ef4",
+            ),
+            billing_mode_summary: None,
+            local_secondary_indexes: None,
+            global_secondary_indexes: None,
+            stream_specification: None,
+            latest_stream_label: None,
+            latest_stream_arn: None,
+            global_table_version: None,
+            replicas: None,
+            restore_summary: None,
+            sse_description: None,
+            archival_summary: None,
+            table_class_summary: None,
+        },
+    ),
+}
