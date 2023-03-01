@@ -12,6 +12,7 @@ use axum::{
 
 use crate::types::TableDescription;
 
+mod table;
 mod table_manager;
 mod types;
 
@@ -146,7 +147,7 @@ async fn handle_create_table(
 }
 
 pub fn router() -> Router {
-    let manager = table_manager::TableManager::new();
+    let manager = table_manager::TableManager::default();
     Router::new()
         .fallback(any(handler))
         .with_state(Arc::new(manager))

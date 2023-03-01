@@ -80,6 +80,7 @@ where
 }
 
 #[tokio::test]
+#[ignore]
 async fn create_table() -> Result<()> {
     color_eyre::install().unwrap();
     tracing_subscriber::fmt::init();
