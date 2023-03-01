@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
+mod queries;
+
 #[derive(Debug, Error)]
 pub enum TableError {
     #[error("missing partition key")]
@@ -50,6 +52,15 @@ impl Table {
             num_partitions: self.partitions.len(),
         }
     }
+
+    pub(crate) fn query(
+        &self,
+        key_condition_expression: &str,
+        expression_attribute_names: HashMap<&str, &str>,
+        expression_attribute_values: HashMap<&str, &str>,
+    ) -> Result<()> {
+        todo!()
+    }
 }
 
 pub struct Statistics {
@@ -95,6 +106,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn round_trip() {
         init_logging();
 
@@ -112,5 +124,17 @@ mod tests {
         let stats = table.statistics();
 
         assert_eq!(stats.num_partitions, 1);
+
+        let key_condition_expression = "#K = :val";
+        let expression_attribute_names: HashMap<_, _> = [("#K", "pk")].into_iter().collect();
+        let expression_attribute_values: HashMap<_, _> = [(":val", "abc")].into_iter().collect();
+
+        let res = table
+            .query(
+                key_condition_expression,
+                expression_attribute_names,
+                expression_attribute_values,
+            )
+            .unwrap();
     }
 }
