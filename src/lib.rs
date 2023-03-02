@@ -4,13 +4,11 @@ use std::{future::Future, str::FromStr, sync::Arc};
 use axum::{
     async_trait,
     extract::{FromRequestParts, State},
-    http::{request::Parts, HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri},
+    http::{request::Parts, HeaderName, HeaderValue, Method, StatusCode, Uri},
     response::IntoResponse,
     routing::any,
     Json, Router,
 };
-
-use crate::types::TableDescription;
 
 mod table;
 mod table_manager;
@@ -127,7 +125,7 @@ pub async fn handler(
 }
 
 async fn handle_create_table(
-    manager: Arc<table_manager::TableManager>,
+    _manager: Arc<table_manager::TableManager>,
     body: String,
 ) -> Result<Json<types::CreateTableOutput>> {
     tracing::debug!("handling create table");

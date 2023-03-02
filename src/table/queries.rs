@@ -6,7 +6,7 @@ pub enum ParserError {
     #[error("parse error: {0}")]
     ParseError(String),
     #[error("end of items reached unexpectedly")]
-    EOI,
+    Eoi,
 }
 
 #[derive(pest_derive::Parser)]
@@ -38,8 +38,8 @@ fn parse_and_condition(root: Pair<Rule>) -> Result<Node, ParserError> {
     assert_eq!(root.as_rule(), Rule::and_condition);
 
     let mut pairs = root.into_inner();
-    let lhs = parse_condition(pairs.next().ok_or(ParserError::EOI)?)?;
-    let rhs = parse_condition(pairs.next().ok_or(ParserError::EOI)?)?;
+    let lhs = parse_condition(pairs.next().ok_or(ParserError::Eoi)?)?;
+    let rhs = parse_condition(pairs.next().ok_or(ParserError::Eoi)?)?;
 
     Ok(Node::Binop {
         lhs: Box::new(lhs),
@@ -51,11 +51,11 @@ fn parse_and_condition(root: Pair<Rule>) -> Result<Node, ParserError> {
 fn parse_key(root: Pair<Rule>) -> Result<Node, ParserError> {
     assert_eq!(root.as_rule(), Rule::key);
 
-    let inner = root.into_inner().next().ok_or(ParserError::EOI)?;
+    let inner = root.into_inner().next().ok_or(ParserError::Eoi)?;
     let node = match inner.as_rule() {
         Rule::column_name => Node::Attribute(inner.as_str().to_string()),
         Rule::key_placeholder => {
-            let s = inner.as_str().strip_prefix("#").unwrap();
+            let s = inner.as_str().strip_prefix('#').unwrap();
             Node::Placeholder(s.to_string())
         }
         r => unreachable!("{r:?}"),
@@ -65,7 +65,7 @@ fn parse_key(root: Pair<Rule>) -> Result<Node, ParserError> {
 
 fn parse_value(root: Pair<Rule>) -> Result<Node, ParserError> {
     assert_eq!(root.as_rule(), Rule::value);
-    let inner = root.into_inner().next().ok_or(ParserError::EOI)?;
+    let inner = root.into_inner().next().ok_or(ParserError::Eoi)?;
     let node = match inner.as_rule() {
         Rule::column_name => Node::Attribute(inner.as_str().to_string()),
         Rule::value_placeholder => {
@@ -81,8 +81,8 @@ fn parse_begins_with(root: Pair<Rule>) -> Result<Node, ParserError> {
     assert_eq!(root.as_rule(), Rule::begins_with);
 
     let mut pairs = root.into_inner();
-    let key = parse_key(pairs.next().ok_or(ParserError::EOI)?)?;
-    let value = parse_value(pairs.next().ok_or(ParserError::EOI)?)?;
+    let key = parse_key(pairs.next().ok_or(ParserError::Eoi)?)?;
+    let value = parse_value(pairs.next().ok_or(ParserError::Eoi)?)?;
 
     let node = Node::FunctionCall {
         name: "begins_with".to_string(),
@@ -94,7 +94,7 @@ fn parse_begins_with(root: Pair<Rule>) -> Result<Node, ParserError> {
 fn parse_function(root: Pair<Rule>) -> Result<Node, ParserError> {
     assert_eq!(root.as_rule(), Rule::function);
 
-    let inner = root.into_inner().next().ok_or(ParserError::EOI)?;
+    let inner = root.into_inner().next().ok_or(ParserError::Eoi)?;
     let node = match inner.as_rule() {
         Rule::begins_with => parse_begins_with(inner)?,
         r => unreachable!("{r:?}"),
@@ -110,15 +110,14 @@ fn parse_condition(root: Pair<Rule>) -> Result<Node, ParserError> {
 
     // determine what kind of condition we have
     if let Some(next) = pairs.peek() {
-        match next.as_rule() {
+        if next.as_rule() == Rule::function {
             // short circuit the function parse tree
-            Rule::function => return parse_function(next.clone()),
-            _ => {}
+            return parse_function(next.clone());
         }
     }
 
     let lhs = {
-        let node = pairs.next().ok_or(ParserError::EOI)?;
+        let node = pairs.next().ok_or(ParserError::Eoi)?;
         match node.as_rule() {
             Rule::key => parse_key(node)?,
             Rule::value => parse_value(node)?,
@@ -128,10 +127,10 @@ fn parse_condition(root: Pair<Rule>) -> Result<Node, ParserError> {
     };
 
     // TODO: op
-    let _ = pairs.next().ok_or(ParserError::EOI)?;
+    let _ = pairs.next().ok_or(ParserError::Eoi)?;
 
     let rhs = {
-        let node = pairs.next().ok_or(ParserError::EOI)?;
+        let node = pairs.next().ok_or(ParserError::Eoi)?;
         match node.as_rule() {
             Rule::key => parse_key(node)?,
             Rule::value => parse_value(node)?,
@@ -150,10 +149,10 @@ pub fn parse(input: &str) -> Result<Node, ParserError> {
     let mut pairs = DynamoDBParser::parse(Rule::condition_expression, input).unwrap();
     let root = pairs
         .next()
-        .ok_or(ParserError::EOI)?
+        .ok_or(ParserError::Eoi)?
         .into_inner()
         .next()
-        .ok_or(ParserError::EOI)?;
+        .ok_or(ParserError::Eoi)?;
     match root.as_rule() {
         Rule::and_condition => parse_and_condition(root),
         Rule::condition => parse_condition(root),
