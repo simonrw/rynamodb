@@ -1,9 +1,12 @@
 WHITESPACE = _{ " " | "\t" | NEWLINE }
 
 condition_expression = {
-    condition ~ "AND" ~ condition
+    and_condition
   | condition
 }
+
+and_condition = { condition ~ "AND" ~ condition }
+
 
 condition = {
     key ~ comparator ~ value
