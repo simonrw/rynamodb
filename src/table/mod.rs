@@ -7,6 +7,10 @@ mod queries;
 pub enum TableError {
     #[error("missing partition key")]
     MissingPartitionKey,
+    #[error("parsing condition expression")]
+    ParseError(#[from] queries::ParserError),
+    #[error("partition key specified is not valid")]
+    InvalidPartitionKey,
 }
 
 pub type Result<T> = std::result::Result<T, TableError>;
@@ -58,8 +62,27 @@ impl Table {
         key_condition_expression: &str,
         expression_attribute_names: HashMap<&str, &str>,
         expression_attribute_values: HashMap<&str, &str>,
-    ) -> Result<()> {
-        todo!()
+    ) -> Result<Vec<HashMap<String, Attribute>>> {
+        let ast = queries::parse(key_condition_expression)?;
+        match ast {
+            // simple equality check with the partition key
+            queries::Node::Binop { op, lhs, rhs } if op == queries::Operator::Eq => {
+                match (lhs.as_ref(), rhs.as_ref()) {
+                    (queries::Node::Attribute(name), queries::Node::Attribute(value)) => {
+                        if name != &self.partition_key {
+                            return Err(TableError::InvalidPartitionKey);
+                        }
+
+                        match self.partitions.get(value) {
+                            Some(p) => Ok(p.rows.clone()),
+                            None => Ok(Vec::new()),
+                        }
+                    }
+                    (l, r) => unreachable!("lhs: {l:?} rhs: {r:?}"),
+                }
+            }
+            _ => todo!(),
+        }
     }
 }
 
@@ -73,7 +96,7 @@ pub struct TableOptions {
     sort_key: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Attribute {
     String(String),
 }
@@ -106,7 +129,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn round_trip() {
         init_logging();
 
@@ -119,22 +141,25 @@ mod tests {
         attributes.insert("pk".to_string(), Attribute::String("abc".to_string()));
         attributes.insert("sk".to_string(), Attribute::String("def".to_string()));
         attributes.insert("value".to_string(), Attribute::String("great".to_string()));
-        table.insert(attributes).unwrap();
+        table.insert(attributes.clone()).unwrap();
 
         let stats = table.statistics();
 
         assert_eq!(stats.num_partitions, 1);
 
-        let key_condition_expression = "#K = :val";
+        let key_condition_expression = "pk = abc";
         let expression_attribute_names: HashMap<_, _> = [("#K", "pk")].into_iter().collect();
         let expression_attribute_values: HashMap<_, _> = [(":val", "abc")].into_iter().collect();
 
-        let res = table
+        let rows = table
             .query(
                 key_condition_expression,
                 expression_attribute_names,
                 expression_attribute_values,
             )
             .unwrap();
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows.into_iter().next().unwrap(), attributes);
     }
 }
