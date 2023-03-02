@@ -1287,6 +1287,8 @@ dependencies = [
  "eyre",
  "insta",
  "nom",
+ "pest",
+ "pest_derive",
  "serde",
  "serde_json",
  "thiserror",

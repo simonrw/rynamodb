@@ -10,6 +10,199 @@ pub(super) enum QueryError {
 
 type Result<T> = std::result::Result<T, QueryError>;
 
+mod parser {
+    use pest::Parser;
+
+    #[derive(pest_derive::Parser)]
+    #[grammar = "grammar.pest"]
+    struct DynamoDBParser;
+
+    #[derive(PartialEq, Debug)]
+    pub enum Node {
+        Binop {
+            lhs: Box<Node>,
+            rhs: Box<Node>,
+            op: Operator,
+        },
+        FunctionCall {
+            name: String,
+            args: Vec<Node>,
+        },
+        Attribute(String),
+        Placeholder(String),
+    }
+
+    #[derive(PartialEq, Debug)]
+    pub enum Operator {
+        Eq,
+        And,
+    }
+
+    fn parse(input: &str) -> Result<Node, Box<dyn std::error::Error>> {
+        let mut pairs = DynamoDBParser::parse(Rule::condition_expression, input).unwrap();
+        let pairs: Vec<_> = pairs.next().unwrap().into_inner().collect();
+        let tree = if pairs.len() == 2 {
+            // partition key and range key
+            let exp1: Vec<_> = pairs[0].clone().into_inner().collect();
+            let first_node = if exp1.len() == 1 {
+                // function
+                todo!()
+            } else if exp1.len() == 3 {
+                assert_eq!(exp1[0].as_rule(), Rule::key);
+                assert_eq!(exp1[1].as_rule(), Rule::comparator);
+                assert_eq!(exp1[2].as_rule(), Rule::value);
+
+                let lhs = {
+                    let pair = exp1[0].clone().into_inner().next().unwrap();
+                    match pair.as_rule() {
+                        Rule::column_name => Node::Attribute(pair.as_str().to_string()),
+                        Rule::key_placeholder => Node::Placeholder(pair.as_str().to_string()),
+                        _ => unreachable!(),
+                    }
+                };
+
+                let rhs = {
+                    let pair = exp1[2].clone().into_inner().next().unwrap();
+                    match pair.as_rule() {
+                        Rule::column_name => Node::Attribute(pair.as_str().to_string()),
+                        Rule::value_placeholder => {
+                            let s = pair.as_str().strip_prefix(':').unwrap();
+                            Node::Placeholder(s.to_string())
+                        }
+                        _ => unreachable!(),
+                    }
+                };
+
+                Node::Binop {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    op: Operator::Eq,
+                }
+            } else {
+                todo!()
+            };
+
+            let exp2 = pairs[1].clone().into_inner().next().unwrap();
+            let second_node = match exp2.as_rule() {
+                Rule::function => {
+                    let inner = exp2.clone().into_inner().next().unwrap();
+                    match inner.as_rule() {
+                        Rule::begins_with => {
+                            let mut args = inner.clone().into_inner();
+                            let arg1 = args.next().unwrap().into_inner().next().unwrap();
+                            let arg1 = match arg1.as_rule() {
+                                Rule::column_name => Node::Attribute(arg1.as_str().to_string()),
+                                Rule::key_placeholder => {
+                                    Node::Placeholder(arg1.as_str().to_string())
+                                }
+                                _ => todo!(),
+                            };
+                            let arg2 = args.next().unwrap().into_inner().next().unwrap();
+                            let arg2 = match arg2.as_rule() {
+                                Rule::column_name => Node::Attribute(arg2.as_str().to_string()),
+                                Rule::value_placeholder => {
+                                    let s = arg2.as_str().strip_prefix(':').unwrap();
+                                    Node::Placeholder(s.to_string())
+                                }
+                                r => todo!("rule: {r:?}"),
+                            };
+
+                            Node::FunctionCall {
+                                name: "begins_with".to_string(),
+                                args: vec![arg1, arg2],
+                            }
+                        }
+                        _ => todo!(),
+                    }
+                }
+                _ => todo!(),
+            };
+
+            Node::Binop {
+                lhs: Box::new(first_node),
+                rhs: Box::new(second_node),
+                op: Operator::And,
+            }
+        } else {
+            // partition key only
+            let mut inner = pairs[0].clone().into_inner();
+            // key
+            let lhs = {
+                let lhs = inner.next().unwrap().into_inner().next().unwrap();
+                match lhs.as_rule() {
+                    Rule::column_name => Node::Attribute(lhs.as_str().to_string()),
+                    Rule::key_placeholder => Node::Placeholder(lhs.as_str().to_string()),
+                    _ => unreachable!(),
+                }
+            };
+            // op
+            let _ = inner.next().unwrap();
+            let rhs = {
+                let rhs = inner.next().unwrap().into_inner().next().unwrap();
+                match rhs.as_rule() {
+                    Rule::column_name => Node::Attribute(rhs.as_str().to_string()),
+                    Rule::value_placeholder => {
+                        let s = rhs.as_str().strip_prefix(':').unwrap();
+                        Node::Placeholder(s.to_string())
+                    }
+                    _ => unreachable!(),
+                }
+            };
+
+            Node::Binop {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+                op: Operator::Eq,
+            }
+        };
+
+        Ok(tree)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn example_1() {
+            let s = "Id = :id AND begins_with(ReplyDateTime, :dt)";
+            let ast = parse(s).unwrap();
+            assert_eq!(
+                ast,
+                Node::Binop {
+                    lhs: Box::new(Node::Binop {
+                        lhs: Box::new(Node::Attribute("Id".to_string())),
+                        rhs: Box::new(Node::Placeholder("id".to_string())),
+                        op: Operator::Eq,
+                    }),
+                    rhs: Box::new(Node::FunctionCall {
+                        name: "begins_with".to_string(),
+                        args: vec![
+                            Node::Attribute("ReplyDateTime".to_string()),
+                            Node::Placeholder("dt".to_string()),
+                        ],
+                    }),
+                    op: Operator::And,
+                }
+            );
+        }
+
+        #[test]
+        fn example_2() {
+            let s = "ForumName = :name";
+            let ast = parse(s).unwrap();
+            assert_eq!(
+                ast,
+                Node::Binop {
+                    lhs: Box::new(Node::Attribute("ForumName".to_string())),
+                    rhs: Box::new(Node::Placeholder("name".to_string())),
+                    op: Operator::Eq,
+                }
+            );
+        }
+    }
+}
+
 mod components {
     use nom::branch::alt;
     use nom::bytes::complete::{tag, take_while};
