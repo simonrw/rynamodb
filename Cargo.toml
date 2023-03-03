@@ -17,6 +17,7 @@ tracing-subscriber = { version = "0.3.16", features = ["fmt", "env-filter"] }
 thiserror = "1.0.38"
 pest = "2.5.5"
 pest_derive = "2.5.5"
+uuid = { version = "1.3.0", features = ["v4"] }
 
 [dev-dependencies]
 aws-config = "0.54.1"

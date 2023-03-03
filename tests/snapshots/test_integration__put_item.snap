@@ -1,0 +1,9 @@
+---
+source: tests/test_integration.rs
+expression: res
+---
+PutItemOutput {
+    attributes: None,
+    consumed_capacity: None,
+    item_collection_metrics: None,
+}
