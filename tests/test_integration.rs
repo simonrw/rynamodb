@@ -78,8 +78,6 @@ async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<()>
             .await
             .wrap_err("fetching table status")?;
 
-        dbg!(&res);
-
         match res
             .table()
             .expect("could not get table")

@@ -129,11 +129,8 @@ pub async fn handler(
     // header, which the SDK does not send.
     body: String,
 ) -> impl IntoResponse {
-    tracing::debug!(?uri, ?method, "handler invoked");
+    tracing::debug!(?uri, ?method, ?operation, "handler invoked");
     tracing::trace!(?headers, "with headers");
-
-    // parse the headers to find the operation
-    dbg!(&operation);
 
     // parse the body
     let res = match operation {
