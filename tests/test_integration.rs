@@ -1,13 +1,18 @@
-use std::future::Future;
+use std::{collections::HashMap, future::Future};
 
 use aws_sdk_dynamodb::{
     model::{
-        AttributeDefinition, KeySchemaElement, KeyType, ProvisionedThroughput, ScalarAttributeType,
+        AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
+        ScalarAttributeType,
     },
     output::CreateTableOutput,
     Client,
 };
 use eyre::{Context, Result};
+
+fn init_logging() {
+    let _ = tracing_subscriber::fmt::try_init();
+}
 
 async fn test_client(port: u16) -> Client {
     if std::env::var("TEST_TARGET").unwrap_or_else(|_| String::new()) == "AWS_CLOUD" {
@@ -21,7 +26,7 @@ async fn test_client(port: u16) -> Client {
     }
 }
 
-async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<CreateTableOutput> {
+async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<()> {
     let pk_ad = AttributeDefinition::builder()
         .attribute_name("pk")
         .attribute_type(ScalarAttributeType::S)
@@ -47,7 +52,7 @@ async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<Cre
         .write_capacity_units(10)
         .build();
 
-    match client
+    client
         .create_table()
         .table_name(table_name)
         .key_schema(pk_ks)
@@ -56,30 +61,40 @@ async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<Cre
         .attribute_definitions(sk_ad)
         .provisioned_throughput(pt)
         .send()
-        .await
-    {
-        Ok(_) => todo!(),
-        Err(e) => eyre::bail!("bad: {e:?}"),
-    }
+        .await?;
+    Ok(())
 }
 
-async fn with_table<F>(
-    table_name: &str,
-    client: &Client,
-    f: F,
-) -> Result<(), Box<dyn std::error::Error>>
+async fn with_table<'a, F>(table_name: &'a str, f: F) -> Result<()>
 where
-    F: FnOnce(&Client) -> Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>> + Unpin>,
+    F: FnOnce(String, Client) -> Box<dyn Future<Output = Result<()>> + Unpin> + 'static,
 {
-    default_dynamodb_table(table_name, client).await?;
-    let res = f(client).await;
-    // TODO: drop table
-    res
+    let router = rynamodb::router();
+    rynamodb::test_run_server(router, |port| {
+        let table_name = table_name.to_string();
+        Box::new(Box::pin(async move {
+            let endpoint_url = format!("http://127.0.0.1:{port}");
+            let client = create_client(Some(&endpoint_url)).await;
+
+            // create the table
+            default_dynamodb_table(&table_name, &client).await?;
+
+            // run the test closure
+            let res = f(table_name.clone(), client.clone()).await;
+
+            // TODO: drop table
+            res
+        }))
+    })
+    .await?;
+    Ok(())
 }
 
 #[tokio::test]
 #[ignore]
 async fn create_table() -> Result<()> {
+    init_logging();
+
     color_eyre::install().unwrap();
     tracing_subscriber::fmt::init();
 
@@ -137,19 +152,20 @@ async fn create_table() -> Result<()> {
 }
 
 #[tokio::test]
-#[ignore]
-async fn foo() {
-    let router = rynamodb::router();
-    rynamodb::test_run_server(router, |port| {
-        Box::new(Box::pin(async move {
-            let endpoint_url = format!("http://127.0.0.1:{port}");
-            let client = create_client(Some(&endpoint_url)).await;
+async fn round_trip() {
+    init_logging();
 
-            with_table("table", &client, |_client| {
-                Box::new(Box::pin(async { Ok(()) }))
-            })
-            .await
-            .unwrap();
+    // check that we can insert and fetch data from rynamodb
+    with_table("table", |table_name, client| {
+        Box::new(Box::pin(async move {
+            client
+                .put_item()
+                .table_name(table_name)
+                .item("pk", AttributeValue::S("abc".to_string()))
+                .send()
+                .await
+                .wrap_err("inserting item")?;
+
             Ok(())
         }))
     })
