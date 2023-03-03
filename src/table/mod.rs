@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
+use crate::types;
+
 use self::queries::{Node, Operator};
 
 mod queries;
@@ -21,8 +23,9 @@ pub enum TableError {
 
 pub type Result<T> = std::result::Result<T, TableError>;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Table {
+    pub name: String,
     partition_key: String,
     sort_key: Option<String>,
     /// map partition key to partitions
@@ -32,6 +35,7 @@ pub struct Table {
 impl Table {
     pub fn new(options: TableOptions) -> Self {
         Self {
+            name: options.name,
             partition_key: options.partition_key,
             sort_key: options.sort_key,
             ..Default::default()
@@ -60,6 +64,14 @@ impl Table {
     pub fn statistics(&self) -> Statistics {
         Statistics {
             num_partitions: self.partitions.len(),
+        }
+    }
+
+    pub fn description(&self) -> types::TableDescription {
+        types::TableDescription {
+            table_name: Some(self.name.clone()),
+            table_status: Some("ACTIVE".to_string()),
+            ..Default::default()
         }
     }
 
@@ -169,8 +181,36 @@ pub struct Statistics {
 
 #[derive(Clone)]
 pub struct TableOptions {
-    partition_key: String,
-    sort_key: Option<String>,
+    pub name: String,
+    pub partition_key: String,
+    pub sort_key: Option<String>,
+}
+
+impl From<types::CreateTableInput> for TableOptions {
+    fn from(value: types::CreateTableInput) -> Self {
+        let mut partition_key = String::new();
+        let mut sort_key = None;
+
+        for key_definition in value.key_schema {
+            if key_definition.key_type == types::KeyType::HASH {
+                partition_key = key_definition.attribute_name.clone();
+            }
+
+            if key_definition.key_type == types::KeyType::RANGE {
+                sort_key = Some(key_definition.attribute_name.clone());
+            }
+        }
+
+        if partition_key.is_empty() {
+            // TODO
+        }
+
+        Self {
+            name: value.table_name,
+            partition_key,
+            sort_key,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -186,7 +226,7 @@ impl Attribute {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Partition {
     rows: Vec<HashMap<String, Attribute>>,
 }
@@ -291,6 +331,7 @@ mod tests {
 
     fn default_table() -> Table {
         let table = Table::new(TableOptions {
+            name: format!("table-{}", uuid::Uuid::new_v4()),
             partition_key: "pk".to_string(),
             sort_key: Some("sk".to_string()),
         });

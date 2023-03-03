@@ -1,17 +1,17 @@
-use std::{collections::HashMap, future::Future, time::Duration};
+use std::{future::Future, time::Duration};
 
 use aws_sdk_dynamodb::{
     model::{
         AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
         ScalarAttributeType,
     },
-    output::CreateTableOutput,
     Client,
 };
 use eyre::{Context, Result};
 
 fn init_logging() {
     let _ = tracing_subscriber::fmt::try_init();
+    // let _ = color_eyre::install();
 }
 
 fn targetting_aws() -> bool {
@@ -78,7 +78,14 @@ async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<()>
             .await
             .wrap_err("fetching table status")?;
 
-        match res.table().unwrap().table_status().unwrap() {
+        dbg!(&res);
+
+        match res
+            .table()
+            .expect("could not get table")
+            .table_status()
+            .expect("could not retrieve table status")
+        {
             aws_sdk_dynamodb::model::TableStatus::Active => {
                 tracing::debug!("table created successfully");
                 return Ok(());
@@ -124,10 +131,8 @@ where
 }
 
 #[tokio::test]
-#[ignore]
 async fn create_table() -> Result<()> {
     init_logging();
-    color_eyre::install().unwrap();
 
     let router = rynamodb::router();
     rynamodb::test_run_server(router, |port| {
@@ -159,9 +164,10 @@ async fn create_table() -> Result<()> {
                 .write_capacity_units(10)
                 .build();
 
+            let table_name = format!("table-{}", uuid::Uuid::new_v4());
             let res = client
                 .create_table()
-                .table_name("table")
+                .table_name(&table_name)
                 .key_schema(pk_ks)
                 .attribute_definitions(pk_ad)
                 .key_schema(sk_ks)
@@ -174,6 +180,8 @@ async fn create_table() -> Result<()> {
             // TODO: handle the arn
             insta::assert_debug_snapshot!(res);
 
+            // delete the table
+
             Ok(())
         }))
     })
@@ -183,11 +191,9 @@ async fn create_table() -> Result<()> {
 }
 
 #[tokio::test]
-#[ignore]
 async fn put_item() -> Result<()> {
     init_logging();
 
-    let _ = color_eyre::install();
     with_table(|table_name, client| {
         Box::new(Box::pin(async move {
             let res = client
@@ -216,11 +222,24 @@ async fn round_trip() {
         Box::new(Box::pin(async move {
             client
                 .put_item()
-                .table_name(table_name)
+                .table_name(&table_name)
                 .item("pk", AttributeValue::S("abc".to_string()))
+                .item("sk", AttributeValue::S("def".to_string()))
                 .send()
                 .await
                 .wrap_err("inserting item")?;
+
+            let res = client
+                .query()
+                .table_name(&table_name)
+                .key_condition_expression("pk = :a AND sk = :b")
+                .expression_attribute_values(":a", AttributeValue::S("abc".to_string()))
+                .expression_attribute_values(":b", AttributeValue::S("def".to_string()))
+                .send()
+                .await
+                .wrap_err("performing query")?;
+
+            insta::assert_debug_snapshot!(res);
 
             Ok(())
         }))

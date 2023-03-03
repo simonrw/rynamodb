@@ -26,7 +26,7 @@ CreateTableOutput {
                 ],
             ),
             table_name: Some(
-                "table",
+                "table-d787c77d-76d4-473e-8165-b006241c6a5d",
             ),
             key_schema: Some(
                 [
@@ -53,8 +53,8 @@ CreateTableOutput {
             ),
             creation_date_time: Some(
                 DateTime {
-                    seconds: 1677604318,
-                    subsecond_nanos: 355999946,
+                    seconds: 1677883837,
+                    subsecond_nanos: 575000047,
                 },
             ),
             provisioned_throughput: Some(
@@ -79,10 +79,10 @@ CreateTableOutput {
                 0,
             ),
             table_arn: Some(
-                "arn:aws:dynamodb:eu-west-2:678133472802:table/table",
+                "arn:aws:dynamodb:eu-west-2:678133472802:table/table-d787c77d-76d4-473e-8165-b006241c6a5d",
             ),
             table_id: Some(
-                "d3558043-d3a6-42a5-b3cb-feca1edb1ef4",
+                "17132e68-67e5-4b39-aa0d-5e8d3f43312d",
             ),
             billing_mode_summary: None,
             local_secondary_indexes: None,

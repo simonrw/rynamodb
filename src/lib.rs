@@ -1,5 +1,9 @@
 use eyre::{Context, Result};
-use std::{future::Future, str::FromStr, sync::Arc};
+use std::{
+    future::Future,
+    str::FromStr,
+    sync::{Arc, RwLock},
+};
 
 use axum::{
     async_trait,
@@ -13,6 +17,8 @@ use axum::{
 mod table;
 mod table_manager;
 mod types;
+
+static ACCOUNT_ID: &'static str = "000000000000";
 
 pub async fn run_server(router: Router, port: u16) -> Result<()> {
     let addr = format!("127.0.0.1:{port}").parse().unwrap();
@@ -41,6 +47,7 @@ where
 pub enum OperationType {
     CreateTable,
     PutItem,
+    DescribeTable,
 }
 
 impl FromStr for OperationType {
@@ -50,6 +57,7 @@ impl FromStr for OperationType {
         match s {
             "CreateTable" => Ok(OperationType::CreateTable),
             "PutItem" => Ok(OperationType::PutItem),
+            "DescribeTable" => Ok(OperationType::DescribeTable),
             _ => todo!("parsing operation {s}"),
         }
     }
@@ -111,17 +119,18 @@ where
 pub async fn handler(
     uri: Uri,
     method: Method,
-    // headers: HeaderMap,
+    headers: HeaderMap,
     Operation {
         version: _version,
         name: operation,
     }: Operation,
-    State(manager): State<Arc<table_manager::TableManager>>,
+    State(manager): State<Arc<RwLock<table_manager::TableManager>>>,
     // we cannot use the Json extractor since it requires the `Content-Type: application/json`
     // header, which the SDK does not send.
     body: String,
 ) -> impl IntoResponse {
     tracing::debug!(?uri, ?method, "handler invoked");
+    tracing::trace!(?headers, "with headers");
 
     // parse the headers to find the operation
     dbg!(&operation);
@@ -130,20 +139,41 @@ pub async fn handler(
     let res = match operation {
         OperationType::CreateTable => handle_create_table(manager, body).await,
         OperationType::PutItem => handle_put_item(manager, body).await,
+        OperationType::DescribeTable => handle_describe_table(manager, body).await,
     };
     res.map_err(|e| (StatusCode::BAD_REQUEST, format!("{e:?}")))
 }
 
 async fn handle_put_item(
-    _manager: Arc<table_manager::TableManager>,
-    body: String,
+    _manager: Arc<RwLock<table_manager::TableManager>>,
+    _body: String,
 ) -> Result<Json<types::Response>> {
     tracing::debug!("handling put item");
     Ok(Json(types::Response::PutItem(types::PutItemOutput {})))
 }
 
+async fn handle_describe_table(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    tracing::debug!("handling describe table");
+
+    let input: types::DescribeTableInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    tracing::debug!(?input, "parsed input");
+
+    let unlocked_manager = manager.read().unwrap();
+    match unlocked_manager.get_table(&input.table_name) {
+        Some(table) => Ok(Json(types::Response::DescribeTable(
+            types::DescribeTableOutput {
+                table: table.description(),
+            },
+        ))),
+        None => todo!("no table error"),
+    }
+}
+
 async fn handle_create_table(
-    _manager: Arc<table_manager::TableManager>,
+    manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
 ) -> Result<Json<types::Response>> {
     tracing::debug!("handling create table");
@@ -152,14 +182,13 @@ async fn handle_create_table(
     let input: types::CreateTableInput = serde_json::from_str(&body).wrap_err("invalid json")?;
     tracing::debug!(?input, "parsed input");
 
-    // TODO: create the table
+    // lock: not great, but probably ok for now
+    let mut unlocked_manager = manager.write().unwrap();
+    let table = unlocked_manager.new_table(ACCOUNT_ID, table_manager::Region::UsEast1, input)?;
 
     Ok(Json(types::Response::CreateTable(
         types::CreateTableOutput {
-            table_description: types::TableDescription {
-                attribute_definitions: Some(input.attribute_definitions),
-                table_name: Some(input.table_name),
-            },
+            table_description: table.description(),
         },
     )))
 }
@@ -168,5 +197,5 @@ pub fn router() -> Router {
     let manager = table_manager::TableManager::default();
     Router::new()
         .fallback(any(handler))
-        .with_state(Arc::new(manager))
+        .with_state(Arc::new(RwLock::new(manager)))
 }

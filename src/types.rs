@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct CreateTableInput {
     pub table_name: String,
     pub attribute_definitions: Vec<AttributeDefinition>,
+    pub key_schema: Vec<KeySchema>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -16,8 +17,27 @@ pub struct AttributeDefinition {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct KeySchema {
+    pub attribute_name: String,
+    pub key_type: KeyType,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub enum KeyType {
+    HASH,
+    RANGE,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum AttributeType {
     S,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct DescribeTableInput {
+    pub table_name: String,
 }
 
 /// The resulting response payload for creating a table
@@ -27,11 +47,12 @@ pub struct CreateTableOutput {
     pub table_description: TableDescription,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct TableDescription {
     pub table_name: Option<String>,
     pub attribute_definitions: Option<Vec<AttributeDefinition>>,
+    pub table_status: Option<String>,
 }
 
 /*
@@ -103,8 +124,15 @@ pub struct PutItemInput {}
 pub struct PutItemOutput {}
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct DescribeTableOutput {
+    pub table: TableDescription,
+}
+
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase", untagged)]
 pub enum Response {
     CreateTable(CreateTableOutput),
     PutItem(PutItemOutput),
+    DescribeTable(DescribeTableOutput),
 }
