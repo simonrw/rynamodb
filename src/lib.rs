@@ -4,7 +4,7 @@ use std::{future::Future, str::FromStr, sync::Arc};
 use axum::{
     async_trait,
     extract::{FromRequestParts, State},
-    http::{request::Parts, HeaderName, HeaderValue, Method, StatusCode, Uri},
+    http::{request::Parts, HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri},
     response::IntoResponse,
     routing::any,
     Json, Router,
@@ -40,15 +40,17 @@ where
 #[derive(Debug)]
 pub enum OperationType {
     CreateTable,
+    PutItem,
 }
 
 impl FromStr for OperationType {
-    type Err = ();
+    type Err = String;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "CreateTable" => Ok(OperationType::CreateTable),
-            _ => Err(()),
+            "PutItem" => Ok(OperationType::PutItem),
+            _ => todo!("parsing operation {s}"),
         }
     }
 }
@@ -62,17 +64,21 @@ pub struct Operation {
 
 impl TryFrom<&HeaderValue> for Operation {
     // error does not matter because we map it away anyway
-    type Error = ();
+    type Error = String;
 
     fn try_from(value: &HeaderValue) -> std::result::Result<Self, Self::Error> {
-        let s = value.to_str().map_err(|_| ())?;
+        let s = value
+            .to_str()
+            .map_err(|e| format!("converting to string: {e:?}"))?;
         let mut parts = s.splitn(2, '.');
-        let version = parts.next().ok_or(())?;
-        let operation = parts.next().ok_or(())?;
+        let version = parts.next().ok_or(format!("invalid number of parts"))?;
+        let operation = parts.next().ok_or(format!("invalid number of parts"))?;
 
         Ok(Self {
             version: version.to_string(),
-            name: operation.parse()?,
+            name: operation
+                .parse()
+                .map_err(|e| format!("parsing operation: {e:?}"))?,
         })
     }
 }
@@ -82,7 +88,7 @@ impl<S> FromRequestParts<S> for Operation
 where
     S: Send + Sync,
 {
-    type Rejection = (StatusCode, &'static str);
+    type Rejection = (StatusCode, String);
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -90,11 +96,14 @@ where
     ) -> std::result::Result<Self, Self::Rejection> {
         if let Some(raw_target_string) = parts.headers.get(HeaderName::from_static("x-amz-target"))
         {
-            raw_target_string
-                .try_into()
-                .map_err(|_| (StatusCode::BAD_REQUEST, "invalid target string"))
+            raw_target_string.try_into().map_err(|e| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    format!("invalid target string: {e:?}"),
+                )
+            })
         } else {
-            Err((StatusCode::BAD_REQUEST, "missing target header"))
+            Err((StatusCode::BAD_REQUEST, "missing target header".to_string()))
         }
     }
 }
@@ -120,14 +129,23 @@ pub async fn handler(
     // parse the body
     let res = match operation {
         OperationType::CreateTable => handle_create_table(manager, body).await,
+        OperationType::PutItem => handle_put_item(manager, body).await,
     };
     res.map_err(|e| (StatusCode::BAD_REQUEST, format!("{e:?}")))
+}
+
+async fn handle_put_item(
+    _manager: Arc<table_manager::TableManager>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    tracing::debug!("handling put item");
+    Ok(Json(types::Response::PutItem(types::PutItemOutput {})))
 }
 
 async fn handle_create_table(
     _manager: Arc<table_manager::TableManager>,
     body: String,
-) -> Result<Json<types::CreateTableOutput>> {
+) -> Result<Json<types::Response>> {
     tracing::debug!("handling create table");
     // parse the input
 
@@ -136,12 +154,14 @@ async fn handle_create_table(
 
     // TODO: create the table
 
-    Ok(Json(types::CreateTableOutput {
-        table_description: types::TableDescription {
-            attribute_definitions: Some(input.attribute_definitions),
-            table_name: Some(input.table_name),
+    Ok(Json(types::Response::CreateTable(
+        types::CreateTableOutput {
+            table_description: types::TableDescription {
+                attribute_definitions: Some(input.attribute_definitions),
+                table_name: Some(input.table_name),
+            },
         },
-    }))
+    )))
 }
 
 pub fn router() -> Router {

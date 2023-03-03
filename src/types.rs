@@ -93,3 +93,18 @@ pub struct TableDescription {
   80       │-                "d3558043-d3a6-42a5-b3cb-feca1edb1ef4",
   81       │-            ),
 */
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct PutItemInput {}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct PutItemOutput {}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase", untagged)]
+pub enum Response {
+    CreateTable(CreateTableOutput),
+    PutItem(PutItemOutput),
+}
