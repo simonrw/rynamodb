@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
+use self::queries::Node;
+
 mod queries;
 
 #[derive(Debug, Error)]
@@ -11,6 +13,10 @@ pub enum TableError {
     ParseError(#[from] queries::ParserError),
     #[error("partition key specified is not valid")]
     InvalidPartitionKey,
+    #[error("attribute name {0} not supplied")]
+    NoAttributeName(String),
+    #[error("attribute value {0} not supplied")]
+    NoAttributeValue(String),
 }
 
 pub type Result<T> = std::result::Result<T, TableError>;
@@ -66,10 +72,52 @@ impl Table {
         let ast = queries::parse(key_condition_expression)?;
         match ast {
             // simple equality check with the partition key
-            queries::Node::Binop { op, lhs, rhs } if op == queries::Operator::Eq => {
+            Node::Binop { op, lhs, rhs } if op == queries::Operator::Eq => {
                 match (lhs.as_ref(), rhs.as_ref()) {
-                    (queries::Node::Attribute(name), queries::Node::Attribute(value)) => {
-                        if name != &self.partition_key {
+                    (Node::Attribute(key), Node::Attribute(value)) => {
+                        if key != &self.partition_key {
+                            return Err(TableError::InvalidPartitionKey);
+                        }
+
+                        match self.partitions.get(value) {
+                            Some(p) => Ok(p.rows.clone()),
+                            None => Ok(Vec::new()),
+                        }
+                    }
+                    (Node::Placeholder(key_name), Node::Placeholder(value_name)) => {
+                        let key = expression_attribute_names
+                            .get(format!("#{key_name}").as_str())
+                            .ok_or_else(|| TableError::NoAttributeName(key_name.to_string()))?;
+
+                        if key != &self.partition_key {
+                            return Err(TableError::InvalidPartitionKey);
+                        }
+
+                        let value = expression_attribute_values
+                            .get(format!(":{value_name}").as_str())
+                            .ok_or_else(|| TableError::NoAttributeValue(value_name.to_string()))?;
+                        match self.partitions.get(*value) {
+                            Some(p) => Ok(p.rows.clone()),
+                            None => Ok(Vec::new()),
+                        }
+                    }
+                    (Node::Attribute(key), Node::Placeholder(value_name)) => {
+                        if key != &self.partition_key {
+                            return Err(TableError::InvalidPartitionKey);
+                        }
+                        let value = expression_attribute_values
+                            .get(format!(":{value_name}").as_str())
+                            .ok_or_else(|| TableError::NoAttributeValue(value_name.to_string()))?;
+                        match self.partitions.get(*value) {
+                            Some(p) => Ok(p.rows.clone()),
+                            None => Ok(Vec::new()),
+                        }
+                    }
+                    (Node::Placeholder(key_name), Node::Attribute(value)) => {
+                        let key = expression_attribute_names
+                            .get(format!("#{key_name}").as_str())
+                            .ok_or_else(|| TableError::NoAttributeName(key_name.to_string()))?;
+                        if key != &self.partition_key {
                             return Err(TableError::InvalidPartitionKey);
                         }
 
@@ -152,27 +200,32 @@ mod tests {
     fn round_trip() {
         init_logging();
 
-        let mut table = default_table();
+        let queries = &["pk = abc", "#K = :val", "pk = :val", "#K = abc"];
+        for query in queries {
+            eprintln!("testing query {query}");
+            let mut table = default_table();
 
-        let attributes =
-            insert_into_table!(table, "pk" => "abc", "sk" => "def", "value" => "great");
+            let attributes =
+                insert_into_table!(table, "pk" => "abc", "sk" => "def", "value" => "great");
 
-        let stats = table.statistics();
-        assert_eq!(stats.num_partitions, 1);
+            let stats = table.statistics();
+            assert_eq!(stats.num_partitions, 1);
 
-        let key_condition_expression = "pk = abc";
-        let expression_attribute_names: HashMap<_, _> = [("#K", "pk")].into_iter().collect();
-        let expression_attribute_values: HashMap<_, _> = [(":val", "abc")].into_iter().collect();
+            let key_condition_expression = query;
+            let expression_attribute_names: HashMap<_, _> = [("#K", "pk")].into_iter().collect();
+            let expression_attribute_values: HashMap<_, _> =
+                [(":val", "abc")].into_iter().collect();
 
-        let rows = table
-            .query(
-                key_condition_expression,
-                expression_attribute_names,
-                expression_attribute_values,
-            )
-            .unwrap();
+            let rows = table
+                .query(
+                    key_condition_expression,
+                    expression_attribute_names,
+                    expression_attribute_values,
+                )
+                .unwrap();
 
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows.into_iter().next().unwrap(), attributes);
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows.into_iter().next().unwrap(), attributes);
+        }
     }
 }
