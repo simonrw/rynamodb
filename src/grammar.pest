@@ -1,0 +1,53 @@
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+
+condition_expression = {
+    and_condition
+  | condition
+}
+
+and_condition = { condition ~ "AND" ~ condition }
+
+
+condition = {
+    key ~ comparator ~ value
+  | key ~ "BETWEEN" ~ value ~ "AND" ~ value
+  | function
+}
+
+comparator = {
+    "="
+  | "<>"
+  | "<"
+  | "<="
+  | ">"
+  | ">="
+}
+
+function = {
+    attribute_exists
+  | attribute_not_exists
+  | attribute_type
+  | begins_with
+  | contains
+  | size
+}
+
+attribute_exists     = { "attribute_exists" ~ "(" ~ path ~ ")" }
+attribute_not_exists = { "attribute_not_exists" ~ "(" ~ path ~ ")" }
+attribute_type       = { "attribute_type" ~ "(" ~ path ~ "," ~ type ~ ")" }
+begins_with          = { "begins_with" ~ "(" ~ key ~ "," ~ value ~ ")" }
+contains             = { "contains" ~ "(" ~ path ~ "," ~ value ~ ")" }
+size                 = { "size" ~ "(" ~ path ~ ")" }
+
+column_name = @{ ASCII_ALPHA+ }
+key_placeholder = @{ "#" ~ ASCII_ALPHA+ }
+value_placeholder = @{ ":" ~ ASCII_ALPHA+ }
+
+key = { key_placeholder | column_name }
+value = { value_placeholder | column_name }
+
+path    = @{ ASCII_ALPHA+ }
+type    = {
+    "S"
+}
+substr  = @{ "\"" ~ ASCII_ALPHA+ ~ "\"" }

@@ -61,8 +61,6 @@ async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<Cre
         Ok(_) => todo!(),
         Err(e) => eyre::bail!("bad: {e:?}"),
     }
-
-    todo!()
 }
 
 async fn with_table<F>(
@@ -73,7 +71,7 @@ async fn with_table<F>(
 where
     F: FnOnce(&Client) -> Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>> + Unpin>,
 {
-    default_dynamodb_table(table_name, client).await;
+    default_dynamodb_table(table_name, client).await?;
     let res = f(client).await;
     // TODO: drop table
     res
@@ -138,25 +136,26 @@ async fn create_table() -> Result<()> {
     Ok(())
 }
 
-// #[tokio::test]
-// async fn foo() {
-//     let router = rynamodb::router();
-//     rynamodb::test_run_server(router, |port| {
-//         Box::new(Box::pin(async move {
-//             let endpoint_url = format!("http://127.0.0.1:{port}");
-//             let client = create_client(Some(&endpoint_url)).await;
+#[tokio::test]
+#[ignore]
+async fn foo() {
+    let router = rynamodb::router();
+    rynamodb::test_run_server(router, |port| {
+        Box::new(Box::pin(async move {
+            let endpoint_url = format!("http://127.0.0.1:{port}");
+            let client = create_client(Some(&endpoint_url)).await;
 
-//             with_table("table", &client, |_client| {
-//                 Box::new(Box::pin(async { Ok(()) }))
-//             })
-//             .await
-//             .unwrap();
-//             Ok(())
-//         }))
-//     })
-//     .await
-//     .unwrap();
-// }
+            with_table("table", &client, |_client| {
+                Box::new(Box::pin(async { Ok(()) }))
+            })
+            .await
+            .unwrap();
+            Ok(())
+        }))
+    })
+    .await
+    .unwrap();
+}
 
 async fn create_client(endpoint_url: Option<&str>) -> aws_sdk_dynamodb::Client {
     match endpoint_url {
