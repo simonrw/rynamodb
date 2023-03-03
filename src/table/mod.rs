@@ -204,8 +204,75 @@ impl Partition {
     ) -> Result<Vec<HashMap<String, Attribute>>> {
         match ast {
             Node::Binop { lhs, rhs, op } => match (lhs.as_ref(), rhs.as_ref(), op) {
-                (Node::Attribute(key), Node::Attribute(value), Operator::Eq) => {
-                    Ok(self.rows.iter().filter(|row| true).cloned().collect())
+                (Node::Attribute(key), Node::Attribute(value), Operator::Eq) => Ok(self
+                    .rows
+                    .iter()
+                    .filter(|row| {
+                        row.get(key.as_str())
+                            .map(|v| match v {
+                                Attribute::String(s) => value == s,
+                            })
+                            .unwrap_or(false)
+                    })
+                    .cloned()
+                    .collect()),
+                (Node::Placeholder(key_name), Node::Attribute(value), Operator::Eq) => {
+                    let key = expression_attribute_names
+                        .get(format!("#{key_name}").as_str())
+                        .ok_or_else(|| TableError::NoAttributeName(key_name.to_string()))?;
+
+                    Ok(self
+                        .rows
+                        .iter()
+                        .filter(|row| {
+                            row.get(*key)
+                                .map(|v| match v {
+                                    Attribute::String(s) => value == s,
+                                })
+                                .unwrap_or(false)
+                        })
+                        .cloned()
+                        .collect())
+                }
+                (Node::Attribute(key), Node::Placeholder(value_name), Operator::Eq) => {
+                    let value = expression_attribute_values
+                        .get(format!(":{value_name}").as_str())
+                        .ok_or_else(|| TableError::NoAttributeValue(value_name.to_string()))?;
+
+                    Ok(self
+                        .rows
+                        .iter()
+                        .filter(|row| {
+                            row.get(key.as_str())
+                                .map(|v| match v {
+                                    Attribute::String(s) => value == s,
+                                })
+                                .unwrap_or(false)
+                        })
+                        .cloned()
+                        .collect())
+                }
+                (Node::Placeholder(key_name), Node::Placeholder(value_name), Operator::Eq) => {
+                    let key = expression_attribute_names
+                        .get(format!("#{key_name}").as_str())
+                        .ok_or_else(|| TableError::NoAttributeName(key_name.to_string()))?;
+
+                    let value = expression_attribute_values
+                        .get(format!(":{value_name}").as_str())
+                        .ok_or_else(|| TableError::NoAttributeValue(value_name.to_string()))?;
+
+                    Ok(self
+                        .rows
+                        .iter()
+                        .filter(|row| {
+                            row.get(*key)
+                                .map(|v| match v {
+                                    Attribute::String(s) => value == s,
+                                })
+                                .unwrap_or(false)
+                        })
+                        .cloned()
+                        .collect())
                 }
                 (l, r, o) => todo!("lhs: {l:?}, rhs: {r:?}, op: {o:?}"),
             },
@@ -257,14 +324,13 @@ mod tests {
             let stats = table.statistics();
             assert_eq!(stats.num_partitions, 1);
 
-            let key_condition_expression = query;
             let expression_attribute_names: HashMap<_, _> = [("#K", "pk")].into_iter().collect();
             let expression_attribute_values: HashMap<_, _> =
                 [(":val", "abc")].into_iter().collect();
 
             let rows = table
                 .query(
-                    key_condition_expression,
+                    query,
                     expression_attribute_names,
                     expression_attribute_values,
                 )
@@ -279,7 +345,12 @@ mod tests {
     fn pk_and_sk_equality() {
         init_logging();
 
-        let queries = &["pk = abc AND sk = def"];
+        let queries = &[
+            "pk = abc AND sk = def",
+            "pk = abc AND #S = def",
+            "pk = abc AND sk = :other",
+            "pk = abc AND #S = :other",
+        ];
         for query in queries {
             eprintln!("testing query {query}");
             let mut table = default_table();
@@ -287,17 +358,20 @@ mod tests {
             let attributes =
                 insert_into_table!(table, "pk" => "abc", "sk" => "def", "value" => "great");
 
-            let stats = table.statistics();
-            assert_eq!(stats.num_partitions, 1);
+            // insert an additional row to ensure that we don't return this value as well
+            insert_into_table!(table, "pk" => "foobar", "sk" => "123", "another" => "something");
 
-            let key_condition_expression = query;
-            let expression_attribute_names: HashMap<_, _> = [("#K", "pk")].into_iter().collect();
+            let stats = table.statistics();
+            assert_eq!(stats.num_partitions, 2);
+
+            let expression_attribute_names: HashMap<_, _> =
+                [("#K", "pk"), ("#S", "sk")].into_iter().collect();
             let expression_attribute_values: HashMap<_, _> =
-                [(":val", "abc")].into_iter().collect();
+                [(":val", "abc"), (":other", "def")].into_iter().collect();
 
             let rows = table
                 .query(
-                    key_condition_expression,
+                    query,
                     expression_attribute_names,
                     expression_attribute_values,
                 )
