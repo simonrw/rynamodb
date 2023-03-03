@@ -128,23 +128,36 @@ mod tests {
         let _ = tracing_subscriber::fmt::try_init();
     }
 
-    #[test]
-    fn round_trip() {
-        init_logging();
-
-        let mut table = Table::new(TableOptions {
+    fn default_table() -> Table {
+        let table = Table::new(TableOptions {
             partition_key: "pk".to_string(),
             sort_key: Some("sk".to_string()),
         });
 
-        let mut attributes = HashMap::new();
-        attributes.insert("pk".to_string(), Attribute::String("abc".to_string()));
-        attributes.insert("sk".to_string(), Attribute::String("def".to_string()));
-        attributes.insert("value".to_string(), Attribute::String("great".to_string()));
-        table.insert(attributes.clone()).unwrap();
+        table
+    }
+
+    macro_rules! insert_into_table {
+        ($table:ident, $($key:expr => $value:expr),+) => {{
+            let mut attributes = HashMap::new();
+            $(
+                attributes.insert($key.to_string(), Attribute::String($value.to_string()));
+            )+
+            $table.insert(attributes.clone()).unwrap();
+            attributes
+        }};
+    }
+
+    #[test]
+    fn round_trip() {
+        init_logging();
+
+        let mut table = default_table();
+
+        let attributes =
+            insert_into_table!(table, "pk" => "abc", "sk" => "def", "value" => "great");
 
         let stats = table.statistics();
-
         assert_eq!(stats.num_partitions, 1);
 
         let key_condition_expression = "pk = abc";
