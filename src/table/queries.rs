@@ -28,7 +28,7 @@ pub enum Node {
     Placeholder(String),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Operator {
     Eq,
     And,

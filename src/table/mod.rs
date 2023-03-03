@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
-use self::queries::Node;
+use self::queries::{Node, Operator};
 
 mod queries;
 
@@ -129,6 +129,35 @@ impl Table {
                     (l, r) => unreachable!("lhs: {l:?} rhs: {r:?}"),
                 }
             }
+            Node::Binop { op, lhs, rhs } if op == queries::Operator::And => {
+                // TODO: assume the lhs is the primary key for now
+                let pk_query = lhs.as_ref();
+                match pk_query {
+                    Node::Binop {
+                        lhs: pk_lhs,
+                        rhs: pk_rhs,
+                        // operator _must_ be =
+                        ..
+                    } => match (pk_lhs.as_ref(), pk_rhs.as_ref()) {
+                        (Node::Attribute(_), Node::Attribute(value)) => {
+                            let partition = self
+                                .partitions
+                                .get(value)
+                                .ok_or_else(|| TableError::InvalidPartitionKey)?;
+
+                            // delegate to the partition
+                            // the rhs _must_ be the sk
+                            partition.query(
+                                *rhs,
+                                &expression_attribute_names,
+                                &expression_attribute_values,
+                            )
+                        }
+                        (l, r) => unreachable!("lhs: {l:?} rhs: {r:?}"),
+                    },
+                    n => unreachable!("node: {n:?}"),
+                }
+            }
             _ => todo!(),
         }
     }
@@ -166,6 +195,23 @@ impl Partition {
     pub fn insert(&mut self, attributes: HashMap<String, Attribute>) {
         self.rows.push(attributes);
     }
+
+    fn query(
+        &self,
+        ast: Node,
+        expression_attribute_names: &HashMap<&str, &str>,
+        expression_attribute_values: &HashMap<&str, &str>,
+    ) -> Result<Vec<HashMap<String, Attribute>>> {
+        match ast {
+            Node::Binop { lhs, rhs, op } => match (lhs.as_ref(), rhs.as_ref(), op) {
+                (Node::Attribute(key), Node::Attribute(value), Operator::Eq) => {
+                    Ok(self.rows.iter().filter(|row| true).cloned().collect())
+                }
+                (l, r, o) => todo!("lhs: {l:?}, rhs: {r:?}, op: {o:?}"),
+            },
+            _ => todo!("unhandled query for secondary: {ast:?}"),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -197,10 +243,43 @@ mod tests {
     }
 
     #[test]
-    fn round_trip() {
+    fn pk_only() {
         init_logging();
 
         let queries = &["pk = abc", "#K = :val", "pk = :val", "#K = abc"];
+        for query in queries {
+            eprintln!("testing query {query}");
+            let mut table = default_table();
+
+            let attributes =
+                insert_into_table!(table, "pk" => "abc", "sk" => "def", "value" => "great");
+
+            let stats = table.statistics();
+            assert_eq!(stats.num_partitions, 1);
+
+            let key_condition_expression = query;
+            let expression_attribute_names: HashMap<_, _> = [("#K", "pk")].into_iter().collect();
+            let expression_attribute_values: HashMap<_, _> =
+                [(":val", "abc")].into_iter().collect();
+
+            let rows = table
+                .query(
+                    key_condition_expression,
+                    expression_attribute_names,
+                    expression_attribute_values,
+                )
+                .unwrap();
+
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows.into_iter().next().unwrap(), attributes);
+        }
+    }
+
+    #[test]
+    fn pk_and_sk_equality() {
+        init_logging();
+
+        let queries = &["pk = abc AND sk = def"];
         for query in queries {
             eprintln!("testing query {query}");
             let mut table = default_table();
