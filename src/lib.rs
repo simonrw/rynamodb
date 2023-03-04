@@ -38,7 +38,7 @@ where
     tracing::debug!(?listening_port, "server listening");
     let handle = tokio::spawn(async { server.await });
     let result = f(listening_port).await;
-    eprintln!("stopping server");
+    tracing::debug!("stopping server");
     drop(handle);
     result
 }

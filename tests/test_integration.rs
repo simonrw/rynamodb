@@ -23,10 +23,10 @@ fn targetting_aws() -> bool {
 
 async fn test_client(port: u16) -> Client {
     if targetting_aws() {
-        eprintln!("creating client against AWS");
+        tracing::debug!("creating client against AWS");
         create_client(None).await
     } else {
-        println!("creating local client");
+        tracing::debug!("creating local client");
         let endpoint_url = format!("http://127.0.0.1:{port}");
         let client = create_client(Some(&endpoint_url)).await;
         client
@@ -179,11 +179,20 @@ async fn create_table() -> Result<()> {
                 .wrap_err("sending request")?;
 
             // TODO: handle the arn
-            insta::assert_debug_snapshot!(res);
+            let result = std::panic::catch_unwind(|| {
+                insta::assert_debug_snapshot!(res);
+            });
 
             // delete the table
+            match client.delete_table().table_name(&table_name).send().await {
+                Ok(_) => {}
+                Err(e) if targetting_aws() => {
+                    return Err(eyre::eyre!("could not drop table {table_name}: {e:?}"));
+                }
+                _ => tracing::warn!(%table_name, "deleting table"),
+            }
 
-            Ok(())
+            result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
         }))
     })
     .await
@@ -206,9 +215,11 @@ async fn put_item() -> Result<()> {
                 .await
                 .wrap_err("inserting item")?;
 
-            insta::assert_debug_snapshot!(res);
+            let result = std::panic::catch_unwind(|| {
+                insta::assert_debug_snapshot!(res);
+            });
 
-            Ok(())
+            result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
         }))
     })
     .await
@@ -240,9 +251,11 @@ async fn round_trip() {
                 .await
                 .wrap_err("performing query")?;
 
-            insta::assert_debug_snapshot!(res);
+            let result = std::panic::catch_unwind(|| {
+                insta::assert_debug_snapshot!(res);
+            });
 
-            Ok(())
+            result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
         }))
     })
     .await
