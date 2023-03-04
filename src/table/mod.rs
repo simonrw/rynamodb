@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::types;
+use crate::types::{self, AttributeDefinition, AttributeType, KeySchema, KeyType};
 
 use self::queries::{Node, Operator};
 
@@ -26,6 +26,9 @@ pub type Result<T> = std::result::Result<T, TableError>;
 #[derive(Default, Clone)]
 pub struct Table {
     pub name: String,
+    pub attribute_definitions: Vec<AttributeDefinition>,
+    pub arn: String,
+    // internal information
     partition_key: String,
     sort_key: Option<String>,
     /// map partition key to partitions
@@ -38,6 +41,8 @@ impl Table {
             name: options.name,
             partition_key: options.partition_key,
             sort_key: options.sort_key,
+            attribute_definitions: options.attribute_definitions,
+            arn: "arn:aws:dynamodb:eu-west-2:678133472802:table/table-d787c77d-76d4-473e-8165-b006241c6a5d".to_string(),
             ..Default::default()
         }
     }
@@ -68,10 +73,26 @@ impl Table {
     }
 
     pub fn description(&self) -> types::TableDescription {
+        let mut key_schema = vec![KeySchema {
+            attribute_name: self.partition_key.clone(),
+            key_type: KeyType::HASH,
+        }];
+
+        if let Some(sk) = &self.sort_key {
+            key_schema.push(KeySchema {
+                attribute_name: sk.clone(),
+                key_type: KeyType::RANGE,
+            });
+        }
+
         types::TableDescription {
             table_name: Some(self.name.clone()),
             table_status: Some("ACTIVE".to_string()),
-            ..Default::default()
+            attribute_definitions: Some(self.attribute_definitions.clone()),
+            table_size_bytes: Some(0),
+            item_count: Some(0),
+            key_schema: Some(key_schema),
+            table_arn: Some(self.arn.clone()),
         }
     }
 
@@ -184,6 +205,7 @@ pub struct TableOptions {
     pub name: String,
     pub partition_key: String,
     pub sort_key: Option<String>,
+    pub attribute_definitions: Vec<types::AttributeDefinition>,
 }
 
 impl From<types::CreateTableInput> for TableOptions {
@@ -209,6 +231,7 @@ impl From<types::CreateTableInput> for TableOptions {
             name: value.table_name,
             partition_key,
             sort_key,
+            attribute_definitions: value.attribute_definitions,
         }
     }
 }
@@ -334,6 +357,16 @@ mod tests {
             name: format!("table-{}", uuid::Uuid::new_v4()),
             partition_key: "pk".to_string(),
             sort_key: Some("sk".to_string()),
+            attribute_definitions: vec![
+                AttributeDefinition {
+                    attribute_name: "pk".to_string(),
+                    attribute_type: AttributeType::S,
+                },
+                AttributeDefinition {
+                    attribute_name: "sk".to_string(),
+                    attribute_type: AttributeType::S,
+                },
+            ],
         });
 
         table

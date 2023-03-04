@@ -2,8 +2,8 @@
 source: tests/test_integration.rs
 expression: res
 ---
-CreateTableOutput {
-    table_description: Some(
+DescribeTableOutput {
+    table: Some(
         TableDescription {
             attribute_definitions: Some(
                 [
@@ -26,7 +26,7 @@ CreateTableOutput {
                 ],
             ),
             table_name: Some(
-                "table-d787c77d-76d4-473e-8165-b006241c6a5d",
+                "[table-name]",
             ),
             key_schema: Some(
                 [
@@ -49,12 +49,12 @@ CreateTableOutput {
                 ],
             ),
             table_status: Some(
-                Creating,
+                Active,
             ),
             creation_date_time: Some(
                 DateTime {
-                    seconds: 1677883837,
-                    subsecond_nanos: 575000047,
+                    seconds: 1677971139,
+                    subsecond_nanos: 822000026,
                 },
             ),
             provisioned_throughput: Some(
@@ -79,10 +79,10 @@ CreateTableOutput {
                 0,
             ),
             table_arn: Some(
-                "arn:aws:dynamodb:eu-west-2:678133472802:table/table-d787c77d-76d4-473e-8165-b006241c6a5d",
+                "arn:aws:dynamodb:[region]:[account]:table/[table-name]",
             ),
             table_id: Some(
-                "17132e68-67e5-4b39-aa0d-5e8d3f43312d",
+                "[table-id]",
             ),
             billing_mode_summary: None,
             local_secondary_indexes: None,

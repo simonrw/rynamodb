@@ -9,7 +9,7 @@ pub struct CreateTableInput {
     pub key_schema: Vec<KeySchema>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct AttributeDefinition {
     pub attribute_name: String,
@@ -29,7 +29,7 @@ pub enum KeyType {
     RANGE,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum AttributeType {
     S,
 }
@@ -53,6 +53,10 @@ pub struct TableDescription {
     pub table_name: Option<String>,
     pub attribute_definitions: Option<Vec<AttributeDefinition>>,
     pub table_status: Option<String>,
+    pub table_size_bytes: Option<usize>,
+    pub item_count: Option<usize>,
+    pub key_schema: Option<Vec<KeySchema>>,
+    pub table_arn: Option<String>,
 }
 
 /*

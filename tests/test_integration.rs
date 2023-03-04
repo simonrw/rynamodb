@@ -33,6 +33,34 @@ async fn test_client(port: u16) -> Client {
     }
 }
 
+async fn wait_for_table_creation(table_name: &str, client: &Client) -> Result<()> {
+    tracing::debug!("waiting for table to be created");
+    for _ in 0..30 {
+        let res = client
+            .describe_table()
+            .table_name(table_name)
+            .send()
+            .await
+            .wrap_err("fetching table status")?;
+
+        match res
+            .table()
+            .expect("could not get table")
+            .table_status()
+            .expect("could not retrieve table status")
+        {
+            aws_sdk_dynamodb::model::TableStatus::Active => {
+                tracing::debug!("table created successfully");
+                return Ok(());
+            }
+            status => tracing::trace!(?status, "incomplete status given"),
+        }
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+    eyre::bail!("timeout waiting for table to have been created");
+}
+
 #[tracing::instrument(skip(client))]
 async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<()> {
     let pk_ad = AttributeDefinition::builder()
@@ -71,32 +99,7 @@ async fn default_dynamodb_table(table_name: &str, client: &Client) -> Result<()>
         .send()
         .await?;
 
-    // wait for the table to have been created
-    tracing::debug!("waiting for table to be created");
-    for _ in 0..30 {
-        let res = client
-            .describe_table()
-            .table_name(table_name)
-            .send()
-            .await
-            .wrap_err("fetching table status")?;
-
-        match res
-            .table()
-            .expect("could not get table")
-            .table_status()
-            .expect("could not retrieve table status")
-        {
-            aws_sdk_dynamodb::model::TableStatus::Active => {
-                tracing::debug!("table created successfully");
-                return Ok(());
-            }
-            status => tracing::trace!(?status, "incomplete status given"),
-        }
-
-        tokio::time::sleep(Duration::from_secs(2)).await;
-    }
-    eyre::bail!("timeout waiting for table to have been created");
+    wait_for_table_creation(table_name, client).await
 }
 
 async fn with_table<'a, F>(f: F) -> Result<()>
@@ -166,7 +169,7 @@ async fn create_table() -> Result<()> {
                 .build();
 
             let table_name = format!("table-{}", uuid::Uuid::new_v4());
-            let res = client
+            client
                 .create_table()
                 .table_name(&table_name)
                 .key_schema(pk_ks)
@@ -178,9 +181,23 @@ async fn create_table() -> Result<()> {
                 .await
                 .wrap_err("sending request")?;
 
-            // TODO: handle the arn
-            let result = std::panic::catch_unwind(|| {
-                insta::assert_debug_snapshot!(res);
+            wait_for_table_creation(&table_name, &client).await.wrap_err("waiting for table to be created")?;
+
+            let res = client.describe_table().table_name(&table_name).send().await.wrap_err("describing table")?;
+
+            let result = insta::with_settings!({ filters => vec![
+                // table name
+                (r"table-[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-name]"),
+                // region
+                (r"(eu-west-2|us-east-1)", "[region]"),
+                // account id
+                (r"[0-9]{12}", "[account]"),
+                // table id
+                (r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-id]"),
+            ] }, {
+                std::panic::catch_unwind(|| {
+                    insta::assert_debug_snapshot!(res);
+                })
             });
 
             // delete the table
