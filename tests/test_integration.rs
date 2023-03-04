@@ -9,9 +9,12 @@ use aws_sdk_dynamodb::{
 };
 use eyre::{Context, Result};
 
-fn init_logging() {
+fn test_init() {
     let _ = tracing_subscriber::fmt::try_init();
-    // let _ = color_eyre::install();
+
+    // only create new snapshots when targeting AWS
+    let insta_envar_value = if targetting_aws() { "always" } else { "no" };
+    std::env::set_var("INSTA_UPDATE", insta_envar_value);
 }
 
 fn targetting_aws() -> bool {
@@ -130,7 +133,7 @@ where
 
 #[tokio::test]
 async fn create_table() -> Result<()> {
-    init_logging();
+    test_init();
 
     let router = rynamodb::router();
     rynamodb::test_run_server(router, |port| {
@@ -190,7 +193,7 @@ async fn create_table() -> Result<()> {
 
 #[tokio::test]
 async fn put_item() -> Result<()> {
-    init_logging();
+    test_init();
 
     with_table(|table_name, client| {
         Box::new(Box::pin(async move {
@@ -213,7 +216,7 @@ async fn put_item() -> Result<()> {
 
 #[tokio::test]
 async fn round_trip() {
-    init_logging();
+    test_init();
 
     // check that we can insert and fetch data from rynamodb
     with_table(|table_name, client| {
