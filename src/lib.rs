@@ -48,6 +48,8 @@ pub enum OperationType {
     CreateTable,
     PutItem,
     DescribeTable,
+    DeleteTable,
+    Query,
 }
 
 impl FromStr for OperationType {
@@ -58,6 +60,8 @@ impl FromStr for OperationType {
             "CreateTable" => Ok(OperationType::CreateTable),
             "PutItem" => Ok(OperationType::PutItem),
             "DescribeTable" => Ok(OperationType::DescribeTable),
+            "DeleteTable" => Ok(OperationType::DeleteTable),
+            "Query" => Ok(OperationType::Query),
             _ => todo!("parsing operation {s}"),
         }
     }
@@ -137,8 +141,28 @@ pub async fn handler(
         OperationType::CreateTable => handle_create_table(manager, body).await,
         OperationType::PutItem => handle_put_item(manager, body).await,
         OperationType::DescribeTable => handle_describe_table(manager, body).await,
+        OperationType::DeleteTable => handle_delete_table(manager, body).await,
+        OperationType::Query => handle_query(manager, body).await,
     };
     res.map_err(|e| (StatusCode::BAD_REQUEST, format!("{e:?}")))
+}
+
+async fn handle_query(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    tracing::debug!("handling query");
+    Ok(Json(types::Response::Query(types::QueryOutput {})))
+}
+
+async fn handle_delete_table(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    tracing::debug!("handling delete table");
+    Ok(Json(types::Response::DeleteTable(
+        types::DeleteTableOutput {},
+    )))
 }
 
 async fn handle_put_item(

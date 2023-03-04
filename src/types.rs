@@ -130,9 +130,19 @@ pub struct DescribeTableOutput {
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct QueryOutput {}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct DeleteTableOutput {}
+
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase", untagged)]
 pub enum Response {
     CreateTable(CreateTableOutput),
     PutItem(PutItemOutput),
     DescribeTable(DescribeTableOutput),
+    Query(QueryOutput),
+    DeleteTable(DeleteTableOutput),
 }
