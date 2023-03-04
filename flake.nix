@@ -18,6 +18,11 @@
         pkgs = import nixpkgs {
           inherit overlays system;
         };
+
+        darwin-packages = with pkgs; with pkgs.darwin.apple_sdk; [
+          libiconv
+          frameworks.Security
+        ];
       in
       {
         devShells = rec {
@@ -29,9 +34,7 @@
               clippy
               cargo-insta
               rustfmt
-            ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-              libiconv
-            ];
+            ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin darwin-packages;
 
             shellHook = ":";
 
