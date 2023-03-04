@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{table, types};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Region {
     UsEast1,
 }
@@ -17,6 +17,7 @@ impl Default for Region {
 /// Handle the creation and destruction of tables
 #[derive(Default)]
 pub struct TableManager {
+    // map from account to the tables in that account broken down by region
     pub per_account: HashMap<String, TablesPerRegion>,
 }
 
@@ -30,16 +31,8 @@ impl TableManager {
         let table = table::Table::new(input.into());
 
         let account_id = account.into();
-        let entry = self
-            .per_account
-            .entry(account_id.clone())
-            .or_insert(TablesPerRegion {
-                account: account_id,
-                region,
-                tables: HashMap::new(),
-            });
-
-        entry.tables.insert(table.name.clone(), table.clone());
+        let entry = self.per_account.entry(account_id.clone()).or_default();
+        entry.tables.insert(region, table.clone());
         Ok(table)
     }
 
@@ -58,7 +51,6 @@ impl TableManager {
 
 #[derive(Default)]
 pub struct TablesPerRegion {
-    pub account: String,
-    pub region: Region,
-    pub tables: HashMap<String, table::Table>,
+    // map from region to table
+    pub tables: HashMap<Region, table::Table>,
 }
