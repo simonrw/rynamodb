@@ -57,6 +57,7 @@ pub struct TableDescription {
     pub item_count: Option<usize>,
     pub key_schema: Option<Vec<KeySchema>>,
     pub table_arn: Option<String>,
+    pub table_id: Option<String>,
 }
 
 /*

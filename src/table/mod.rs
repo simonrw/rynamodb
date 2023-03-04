@@ -28,6 +28,7 @@ pub struct Table {
     pub name: String,
     pub attribute_definitions: Vec<AttributeDefinition>,
     pub arn: String,
+    pub table_id: String,
     // internal information
     partition_key: String,
     sort_key: Option<String>,
@@ -43,6 +44,7 @@ impl Table {
             sort_key: options.sort_key,
             attribute_definitions: options.attribute_definitions,
             arn: "arn:aws:dynamodb:eu-west-2:678133472802:table/table-d787c77d-76d4-473e-8165-b006241c6a5d".to_string(),
+            table_id: uuid::Uuid::new_v4().to_string(),
             ..Default::default()
         }
     }
@@ -93,6 +95,7 @@ impl Table {
             item_count: Some(0),
             key_schema: Some(key_schema),
             table_arn: Some(self.arn.clone()),
+            table_id: Some(self.table_id.clone()),
         }
     }
 
