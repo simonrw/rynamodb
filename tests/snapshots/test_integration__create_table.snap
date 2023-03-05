@@ -53,8 +53,8 @@ DescribeTableOutput {
             ),
             creation_date_time: Some(
                 DateTime {
-                    seconds: 1677971139,
-                    subsecond_nanos: 822000026,
+                    [seconds],
+                    [nanos],
                 },
             ),
             provisioned_throughput: Some(

@@ -194,6 +194,10 @@ async fn create_table() -> Result<()> {
                 (r"[0-9]{12}", "[account]"),
                 // table id
                 (r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-id]"),
+                // datetime seconds
+                (r"seconds:\s*\d+", "[seconds]"),
+                // datetime nanoseconds
+                (r"subsecond_nanos:\s*\d+", "[nanos]"),
             ] }, {
                 std::panic::catch_unwind(|| {
                     insta::assert_debug_snapshot!(res);
