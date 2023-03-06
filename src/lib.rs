@@ -1,3 +1,4 @@
+use extractors::AwsJson;
 use eyre::{Context, Result};
 use std::{
     future::Future,
@@ -6,14 +7,14 @@ use std::{
 };
 
 use axum::{
-    async_trait,
-    extract::{FromRequestParts, State},
-    http::{request::Parts, HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri},
+    extract::State,
+    http::{HeaderMap, Method, StatusCode, Uri},
     response::IntoResponse,
     routing::any,
     Json, Router,
 };
 
+mod extractors;
 mod table;
 mod table_manager;
 mod types;
@@ -67,67 +68,14 @@ impl FromStr for OperationType {
     }
 }
 
-/// Extractor for dynamodb operation
-#[derive(Debug)]
-pub struct Operation {
-    pub version: String,
-    pub name: OperationType,
-}
-
-impl TryFrom<&HeaderValue> for Operation {
-    // error does not matter because we map it away anyway
-    type Error = String;
-
-    fn try_from(value: &HeaderValue) -> std::result::Result<Self, Self::Error> {
-        let s = value
-            .to_str()
-            .map_err(|e| format!("converting to string: {e:?}"))?;
-        let mut parts = s.splitn(2, '.');
-        let version = parts.next().ok_or(format!("invalid number of parts"))?;
-        let operation = parts.next().ok_or(format!("invalid number of parts"))?;
-
-        Ok(Self {
-            version: version.to_string(),
-            name: operation
-                .parse()
-                .map_err(|e| format!("parsing operation: {e:?}"))?,
-        })
-    }
-}
-
-#[async_trait]
-impl<S> FromRequestParts<S> for Operation
-where
-    S: Send + Sync,
-{
-    type Rejection = (StatusCode, String);
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S,
-    ) -> std::result::Result<Self, Self::Rejection> {
-        if let Some(raw_target_string) = parts.headers.get(HeaderName::from_static("x-amz-target"))
-        {
-            raw_target_string.try_into().map_err(|e| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    format!("invalid target string: {e:?}"),
-                )
-            })
-        } else {
-            Err((StatusCode::BAD_REQUEST, "missing target header".to_string()))
-        }
-    }
-}
-
 pub async fn handler(
     uri: Uri,
     method: Method,
     headers: HeaderMap,
-    Operation {
+    extractors::Operation {
         version: _version,
         name: operation,
-    }: Operation,
+    }: extractors::Operation,
     State(manager): State<Arc<RwLock<table_manager::TableManager>>>,
     // we cannot use the Json extractor since it requires the `Content-Type: application/json`
     // header, which the SDK does not send.
@@ -152,6 +100,7 @@ async fn handle_query(
     body: String,
 ) -> Result<Json<types::Response>> {
     tracing::debug!("handling query");
+
     Ok(Json(types::Response::Query(types::QueryOutput {})))
 }
 
