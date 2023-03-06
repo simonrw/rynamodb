@@ -1,0 +1,22 @@
+---
+source: tests/test_integration.rs
+expression: res
+---
+QueryOutput {
+    items: Some(
+        [
+            {
+                "sk": S(
+                    "def",
+                ),
+                "pk": S(
+                    "abc",
+                ),
+            },
+        ],
+    ),
+    count: 1,
+    scanned_count: 1,
+    last_evaluated_key: None,
+    consumed_capacity: None,
+}
