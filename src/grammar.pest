@@ -46,7 +46,7 @@ value_placeholder = @{ ":" ~ ASCII_ALPHA+ }
 key = { key_placeholder | column_name }
 value = { value_placeholder | column_name }
 
-path    = @{ ASCII_ALPHA+ }
+path    = { key ~ ("." ~ key)+ }
 type    = {
     "S"
 }
