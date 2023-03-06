@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -29,6 +30,8 @@ pub struct Table {
     pub attribute_definitions: Vec<AttributeDefinition>,
     pub arn: String,
     pub table_id: String,
+    pub created_at: DateTime<Utc>,
+    pub provisioned_throughput: types::ProvisionedThroughputDescription,
     // internal information
     partition_key: String,
     sort_key: Option<String>,
@@ -96,6 +99,9 @@ impl Table {
             key_schema: Some(key_schema),
             table_arn: Some(self.arn.clone()),
             table_id: Some(self.table_id.clone()),
+            // TODO
+            creation_date_time: Some(self.created_at.timestamp_millis()),
+            provisioned_throughput: Some(self.provisioned_throughput.clone()),
         }
     }
 
