@@ -95,7 +95,7 @@ impl Table {
             table_status: Some("ACTIVE".to_string()),
             attribute_definitions: Some(self.attribute_definitions.clone()),
             table_size_bytes: Some(0),
-            item_count: Some(0),
+            item_count: Some(self.len()),
             key_schema: Some(key_schema),
             table_arn: Some(self.arn.clone()),
             table_id: Some(self.table_id.clone()),
@@ -103,6 +103,10 @@ impl Table {
             creation_date_time: Some(self.created_at.timestamp_millis()),
             provisioned_throughput: Some(self.provisioned_throughput.clone()),
         }
+    }
+
+    fn len(&self) -> usize {
+        self.partitions.values().map(|p| p.item_count()).sum()
     }
 
     pub(crate) fn query(
@@ -350,6 +354,10 @@ impl Partition {
             },
             _ => todo!("unhandled query for secondary: {ast:?}"),
         }
+    }
+
+    pub fn item_count(&self) -> usize {
+        self.rows.iter().map(|h| h.len()).sum()
     }
 }
 
