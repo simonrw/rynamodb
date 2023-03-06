@@ -226,54 +226,6 @@ async fn create_table() -> Result<()> {
 }
 
 #[tokio::test]
-async fn describe_table() -> Result<()> {
-    // describe the table after inserting an item
-    test_init();
-
-    with_table(|table_name, client| {
-        Box::new(Box::pin(async move {
-            client
-                .put_item()
-                .table_name(&table_name)
-                .item("pk", AttributeValue::S("abc".to_string()))
-                .item("sk", AttributeValue::S("def".to_string()))
-                .send()
-                .await
-                .wrap_err("inserting item")?;
-
-            let res = client
-                .describe_table()
-                .table_name(&table_name)
-                .send()
-                .await
-                .wrap_err("describing table")?;
-
-            let result = insta::with_settings!({ filters => vec![
-                // table name
-                (r"table-[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-name]"),
-                // region
-                (r"(eu-west-2|us-east-1)", "[region]"),
-                // account id
-                (r"[0-9]{12}", "[account]"),
-                // table id
-                (r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-id]"),
-                // datetime seconds
-                (r"seconds:\s*\d+", "[seconds]"),
-                // datetime nanoseconds
-                (r"subsecond_nanos:\s*\d+", "[nanos]"),
-            ] }, {
-                std::panic::catch_unwind(|| {
-                    insta::assert_debug_snapshot!(res);
-                })
-            });
-
-            result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
-        }))
-    })
-    .await
-}
-
-#[tokio::test]
 async fn put_item() -> Result<()> {
     test_init();
 

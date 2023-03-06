@@ -393,7 +393,7 @@ impl Partition {
     }
 
     pub fn item_count(&self) -> usize {
-        self.rows.iter().map(|h| h.len()).sum()
+        self.rows.len()
     }
 }
 
