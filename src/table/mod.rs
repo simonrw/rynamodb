@@ -121,8 +121,8 @@ impl Table {
     pub(crate) fn query(
         &self,
         key_condition_expression: &str,
-        expression_attribute_names: &HashMap<&str, &str>,
-        expression_attribute_values: &HashMap<String, HashMap<AttributeType, String>>,
+        expression_attribute_names: &Option<HashMap<String, String>>,
+        expression_attribute_values: &Option<HashMap<String, HashMap<AttributeType, String>>>,
     ) -> Result<Vec<HashMap<String, serde_dynamo::AttributeValue>>> {
         let ast = queries::parse(key_condition_expression)?;
         // remove placeholders
@@ -308,7 +308,8 @@ mod tests {
             let stats = table.statistics();
             assert_eq!(stats.num_partitions, 1);
 
-            let expression_attribute_names: HashMap<_, _> = [("#K", "pk")].into_iter().collect();
+            let expression_attribute_names: HashMap<_, _> =
+                [("#K".to_string(), "pk".to_string())].into_iter().collect();
             let expression_attribute_values = {
                 let mut res = HashMap::new();
                 let placeholder: HashMap<_, _> = [(AttributeType::S, "abc".to_string())]
@@ -321,8 +322,8 @@ mod tests {
             let rows = table
                 .query(
                     query,
-                    &expression_attribute_names,
-                    &expression_attribute_values,
+                    &Some(expression_attribute_names),
+                    &Some(expression_attribute_values),
                 )
                 .unwrap();
 
@@ -354,8 +355,12 @@ mod tests {
             let stats = table.statistics();
             assert_eq!(stats.num_partitions, 2);
 
-            let expression_attribute_names: HashMap<_, _> =
-                [("#K", "pk"), ("#S", "sk")].into_iter().collect();
+            let expression_attribute_names: HashMap<_, _> = [
+                ("#K".to_string(), "pk".to_string()),
+                ("#S".to_string(), "sk".to_string()),
+            ]
+            .into_iter()
+            .collect();
             let expression_attribute_values = {
                 let mut res = HashMap::new();
                 let p1: HashMap<_, _> = [(AttributeType::S, "abc".to_string())]
@@ -373,8 +378,8 @@ mod tests {
             let rows = table
                 .query(
                     query,
-                    &expression_attribute_names,
-                    &expression_attribute_values,
+                    &Some(expression_attribute_names),
+                    &Some(expression_attribute_values),
                 )
                 .unwrap();
 

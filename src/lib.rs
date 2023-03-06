@@ -128,7 +128,7 @@ async fn handle_query(
     let res = table
         .query(
             &input.key_condition_expression,
-            &HashMap::new(),
+            &input.expression_attribute_names,
             &input.expression_attribute_values,
         )
         .wrap_err("performing query")?;

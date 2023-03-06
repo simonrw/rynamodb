@@ -47,14 +47,14 @@ pub trait Visitor {
 
 /// Responsible for visiting all nodes in an AST and potentially performing transforms
 pub struct NodeVisitor<'a> {
-    expression_attribute_names: &'a HashMap<&'a str, &'a str>,
-    expression_attribute_values: &'a HashMap<String, HashMap<AttributeType, String>>,
+    expression_attribute_names: &'a Option<HashMap<String, String>>,
+    expression_attribute_values: &'a Option<HashMap<String, HashMap<AttributeType, String>>>,
 }
 
 impl<'a> NodeVisitor<'a> {
     pub fn new(
-        expression_attribute_names: &'a HashMap<&'a str, &'a str>,
-        expression_attribute_values: &'a HashMap<String, HashMap<AttributeType, String>>,
+        expression_attribute_names: &'a Option<HashMap<String, String>>,
+        expression_attribute_values: &'a Option<HashMap<String, HashMap<AttributeType, String>>>,
     ) -> Self {
         Self {
             expression_attribute_names,
@@ -82,11 +82,20 @@ impl<'a> Visitor for NodeVisitor<'a> {
         let name_key = format!("#{key}");
         let value_key = format!(":{key}");
 
-        if let Some(value) = self.expression_attribute_names.get(name_key.as_str()) {
+        if let Some(value) = self
+            .expression_attribute_names
+            .as_ref()
+            .and_then(|names| names.get(name_key.as_str()))
+        {
             *n = Node::Attribute(value.to_string());
             return;
         }
-        if let Some(possible_values) = self.expression_attribute_values.get(&value_key) {
+
+        if let Some(possible_values) = self
+            .expression_attribute_values
+            .as_ref()
+            .and_then(|values| values.get(&value_key))
+        {
             let value = possible_values
                 .values()
                 .next()
@@ -123,9 +132,9 @@ mod tests {
 
         let expression_attribute_names = {
             let mut h = HashMap::new();
-            h.insert("#a", "e");
-            h.insert("#c", "g");
-            h
+            h.insert("#a".to_string(), "e".to_string());
+            h.insert("#c".to_string(), "g".to_string());
+            Some(h)
         };
 
         macro_rules! attr {
@@ -140,7 +149,7 @@ mod tests {
             let mut h = HashMap::new();
             h.insert(":b".to_string(), attr!("f"));
             h.insert(":d".to_string(), attr!("h"));
-            h
+            Some(h)
         };
 
         let visitor = NodeVisitor::new(&expression_attribute_names, &expression_attribute_values);

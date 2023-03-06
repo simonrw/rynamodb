@@ -132,5 +132,6 @@ impl Default for ProvisionedThroughputDescription {
 pub struct QueryInput {
     pub table_name: String,
     pub key_condition_expression: String,
-    pub expression_attribute_values: HashMap<String, HashMap<AttributeType, String>>,
+    pub expression_attribute_names: Option<HashMap<String, String>>,
+    pub expression_attribute_values: Option<HashMap<String, HashMap<AttributeType, String>>>,
 }
