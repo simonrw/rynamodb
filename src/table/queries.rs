@@ -7,6 +7,8 @@ pub enum ParserError {
     ParseError(String),
     #[error("end of items reached unexpectedly")]
     Eoi,
+    #[error("can not convert node to string")]
+    NotStringlike,
 }
 
 #[derive(pest_derive::Parser)]
@@ -26,6 +28,16 @@ pub enum Node {
     },
     Attribute(String),
     Placeholder(String),
+}
+
+impl Node {
+    pub fn as_str(&self) -> Result<&str, ParserError> {
+        match self {
+            Node::Attribute(s) => Ok(s.as_str()),
+            Node::Placeholder(s) => Ok(s.as_str()),
+            _ => Err(ParserError::NotStringlike),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
