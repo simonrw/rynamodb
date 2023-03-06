@@ -125,61 +125,16 @@ impl Table {
         expression_attribute_values: &HashMap<String, HashMap<AttributeType, String>>,
     ) -> Result<Vec<HashMap<String, serde_dynamo::AttributeValue>>> {
         let ast = queries::parse(key_condition_expression)?;
+        // remove placeholders
+        let placeholder_remover =
+            visitor::NodeVisitor::new(expression_attribute_names, expression_attribute_values);
+        let ast = placeholder_remover.visit(ast);
+
         match ast {
             // simple equality check with the partition key
             Node::Binop { op, lhs, rhs } if op == queries::Operator::Eq => {
                 match (lhs.as_ref(), rhs.as_ref()) {
                     (Node::Attribute(key), Node::Attribute(value)) => {
-                        if key != &self.partition_key {
-                            return Err(TableError::InvalidPartitionKey);
-                        }
-
-                        match self.partitions.get(value) {
-                            Some(p) => Ok(p.rows.clone()),
-                            None => Ok(Vec::new()),
-                        }
-                    }
-                    (Node::Placeholder(key_name), Node::Placeholder(value_name)) => {
-                        let key = expression_attribute_names
-                            .get(format!("#{key_name}").as_str())
-                            .ok_or_else(|| TableError::NoAttributeName(key_name.to_string()))?;
-
-                        if key != &self.partition_key {
-                            return Err(TableError::InvalidPartitionKey);
-                        }
-
-                        let value = expression_attribute_values
-                            .get(format!(":{value_name}").as_str())
-                            .ok_or_else(|| TableError::NoAttributeValue(value_name.to_string()))?
-                            .values()
-                            .next()
-                            .ok_or_else(|| TableError::InvalidAttributeMap)?;
-
-                        match self.partitions.get(value) {
-                            Some(p) => Ok(p.rows.clone()),
-                            None => Ok(Vec::new()),
-                        }
-                    }
-                    (Node::Attribute(key), Node::Placeholder(value_name)) => {
-                        if key != &self.partition_key {
-                            return Err(TableError::InvalidPartitionKey);
-                        }
-                        let value = expression_attribute_values
-                            .get(format!(":{value_name}").as_str())
-                            .ok_or_else(|| TableError::NoAttributeValue(value_name.to_string()))?
-                            .values()
-                            .next()
-                            .ok_or_else(|| TableError::InvalidPartitionKey)?;
-
-                        match self.partitions.get(value) {
-                            Some(p) => Ok(p.rows.clone()),
-                            None => Ok(Vec::new()),
-                        }
-                    }
-                    (Node::Placeholder(key_name), Node::Attribute(value)) => {
-                        let key = expression_attribute_names
-                            .get(format!("#{key_name}").as_str())
-                            .ok_or_else(|| TableError::NoAttributeName(key_name.to_string()))?;
                         if key != &self.partition_key {
                             return Err(TableError::InvalidPartitionKey);
                         }
@@ -210,34 +165,7 @@ impl Table {
 
                             // delegate to the partition
                             // the rhs _must_ be the sk
-                            partition.query(
-                                *rhs,
-                                &expression_attribute_names,
-                                &expression_attribute_values,
-                            )
-                        }
-                        (Node::Attribute(_), Node::Placeholder(value_name)) => {
-                            let value = expression_attribute_values
-                                .get(format!(":{value_name}").as_str())
-                                .ok_or_else(|| {
-                                    TableError::NoAttributeValue(value_name.to_string())
-                                })?
-                                .values()
-                                .next()
-                                .ok_or_else(|| TableError::InvalidAttributeMap)?;
-
-                            let partition = self
-                                .partitions
-                                .get(value)
-                                .ok_or_else(|| TableError::InvalidPartitionKey)?;
-
-                            // delegate to the partition
-                            // the rhs _must_ be the sk
-                            partition.query(
-                                *rhs,
-                                &expression_attribute_names,
-                                &expression_attribute_values,
-                            )
+                            partition.query(*rhs)
                         }
                         (l, r) => unreachable!("lhs: {l:?} rhs: {r:?}"),
                     },
@@ -299,12 +227,7 @@ impl Partition {
         self.rows.push(attributes);
     }
 
-    fn query(
-        &self,
-        ast: Node,
-        expression_attribute_names: &HashMap<&str, &str>,
-        expression_attribute_values: &HashMap<String, HashMap<AttributeType, String>>,
-    ) -> Result<Vec<HashMap<String, serde_dynamo::AttributeValue>>> {
+    fn query(&self, ast: Node) -> Result<Vec<HashMap<String, serde_dynamo::AttributeValue>>> {
         match ast {
             Node::Binop { lhs, rhs, op } => match (lhs.as_ref(), rhs.as_ref(), op) {
                 (Node::Attribute(key), Node::Attribute(value), Operator::Eq) => Ok(self
@@ -320,73 +243,6 @@ impl Partition {
                     })
                     .cloned()
                     .collect()),
-                (Node::Placeholder(key_name), Node::Attribute(value), Operator::Eq) => {
-                    let key = expression_attribute_names
-                        .get(format!("#{key_name}").as_str())
-                        .ok_or_else(|| TableError::NoAttributeName(key_name.to_string()))?;
-
-                    Ok(self
-                        .rows
-                        .iter()
-                        .filter(|row| {
-                            row.get(*key)
-                                .map(|v| match v {
-                                    serde_dynamo::AttributeValue::S(s) => value == s,
-                                    _ => todo!(),
-                                })
-                                .unwrap_or(false)
-                        })
-                        .cloned()
-                        .collect())
-                }
-                (Node::Attribute(key), Node::Placeholder(value_name), Operator::Eq) => {
-                    let value = expression_attribute_values
-                        .get(format!(":{value_name}").as_str())
-                        .ok_or_else(|| TableError::NoAttributeValue(value_name.to_string()))?
-                        .values()
-                        .next()
-                        .ok_or_else(|| TableError::InvalidAttributeMap)?;
-
-                    Ok(self
-                        .rows
-                        .iter()
-                        .filter(|row| {
-                            row.get(key.as_str())
-                                .map(|v| match v {
-                                    serde_dynamo::AttributeValue::S(s) => value == s,
-                                    _ => todo!(),
-                                })
-                                .unwrap_or(false)
-                        })
-                        .cloned()
-                        .collect())
-                }
-                (Node::Placeholder(key_name), Node::Placeholder(value_name), Operator::Eq) => {
-                    let key = expression_attribute_names
-                        .get(format!("#{key_name}").as_str())
-                        .ok_or_else(|| TableError::NoAttributeName(key_name.to_string()))?;
-
-                    let value = expression_attribute_values
-                        .get(format!(":{value_name}").as_str())
-                        .ok_or_else(|| TableError::NoAttributeValue(value_name.to_string()))?
-                        .values()
-                        .next()
-                        .ok_or_else(|| TableError::InvalidAttributeMap)?;
-
-                    Ok(self
-                        .rows
-                        .iter()
-                        .filter(|row| {
-                            row.get(*key)
-                                .map(|v| match v {
-                                    serde_dynamo::AttributeValue::S(s) => value == s,
-                                    _ => todo!(),
-                                })
-                                .unwrap_or(false)
-                        })
-                        .cloned()
-                        .collect())
-                }
                 (l, r, o) => todo!("lhs: {l:?}, rhs: {r:?}, op: {o:?}"),
             },
             _ => todo!("unhandled query for secondary: {ast:?}"),

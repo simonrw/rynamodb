@@ -23,14 +23,9 @@ pub fn walk_binop<V: Visitor + ?Sized>(v: &V, n: &mut Node) {
         _ => unreachable!(),
     }
 }
-pub fn walk_function_call<V: Visitor + ?Sized>(v: &V, n: &mut Node) {
-    todo!()
-}
-
-pub fn walk_attribute<V: Visitor + ?Sized>(v: &V, n: &mut Node) {}
-pub fn walk_placeholder<V: Visitor + ?Sized>(v: &V, n: &mut Node) {
-    todo!("placeholder")
-}
+pub fn walk_function_call<V: Visitor + ?Sized>(_: &V, _: &mut Node) {}
+pub fn walk_attribute<V: Visitor + ?Sized>(_: &V, _: &mut Node) {}
+pub fn walk_placeholder<V: Visitor + ?Sized>(_: &V, _: &mut Node) {}
 
 pub trait Visitor {
     fn visit_binop(&self, n: &mut Node) {

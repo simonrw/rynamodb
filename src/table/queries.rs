@@ -15,7 +15,7 @@ pub enum ParserError {
 #[grammar = "grammar.pest"]
 struct DynamoDBParser;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Node {
     Binop {
         lhs: Box<Node>,

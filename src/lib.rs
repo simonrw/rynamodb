@@ -167,8 +167,8 @@ async fn handle_query(
 }
 
 async fn handle_delete_table(
-    manager: Arc<RwLock<table_manager::TableManager>>,
-    body: String,
+    _manager: Arc<RwLock<table_manager::TableManager>>,
+    _body: String,
 ) -> Result<Json<types::Response>> {
     tracing::debug!("handling delete table");
     Ok(Json(types::Response::DeleteTable(
