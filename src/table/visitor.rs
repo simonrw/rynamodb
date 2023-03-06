@@ -62,6 +62,7 @@ impl<'a> NodeVisitor<'a> {
         }
     }
 
+    #[allow(clippy::needless_borrow)]
     pub fn visit(&self, mut ast: Node) -> Node {
         match &mut ast {
             mut n @ Node::Binop { .. } => self.visit_binop(&mut n),

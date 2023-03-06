@@ -31,7 +31,7 @@ impl TableManager {
         let table = table::Table::new(input.into());
 
         let account_id = account.into();
-        let entry = self.per_account.entry(account_id.clone()).or_default();
+        let entry = self.per_account.entry(account_id).or_default();
         entry.tables.insert(region, table.clone());
         Ok(table)
     }
@@ -40,7 +40,7 @@ impl TableManager {
         for account in self.per_account.values() {
             for table in account.tables.values() {
                 if table.name == table_name {
-                    return Some(&table);
+                    return Some(table);
                 }
             }
         }

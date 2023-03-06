@@ -161,7 +161,7 @@ impl Table {
                             let partition = self
                                 .partitions
                                 .get(value)
-                                .ok_or_else(|| TableError::InvalidPartitionKey)?;
+                                .ok_or(TableError::InvalidPartitionKey)?;
 
                             // delegate to the partition
                             // the rhs _must_ be the sk

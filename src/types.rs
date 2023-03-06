@@ -27,6 +27,7 @@ pub struct KeySchema {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum KeyType {
     HASH,
     RANGE,

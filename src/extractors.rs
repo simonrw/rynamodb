@@ -53,8 +53,8 @@ impl TryFrom<&HeaderValue> for Operation {
             .to_str()
             .map_err(|e| format!("converting to string: {e:?}"))?;
         let mut parts = s.splitn(2, '.');
-        let version = parts.next().ok_or(format!("invalid number of parts"))?;
-        let operation = parts.next().ok_or(format!("invalid number of parts"))?;
+        let version = parts.next().ok_or("invalid number of parts".to_string())?;
+        let operation = parts.next().ok_or("invalid number of parts".to_string())?;
 
         Ok(Self {
             version: version.to_string(),

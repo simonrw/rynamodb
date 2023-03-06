@@ -20,7 +20,7 @@ mod table;
 mod table_manager;
 mod types;
 
-static ACCOUNT_ID: &'static str = "000000000000";
+static ACCOUNT_ID: &str = "000000000000";
 
 pub async fn run_server(router: Router, port: u16) -> Result<()> {
     let addr = format!("127.0.0.1:{port}").parse().unwrap();
