@@ -7,6 +7,7 @@ use crate::types::{self, AttributeDefinition, AttributeType, KeySchema, KeyType}
 use self::queries::{Node, Operator};
 
 mod queries;
+mod visitor;
 
 #[derive(Debug, Error)]
 pub enum TableError {
