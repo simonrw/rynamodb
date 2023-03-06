@@ -1,4 +1,3 @@
-use extractors::AwsJson;
 use eyre::{Context, Result};
 use std::{
     collections::HashMap,
@@ -6,6 +5,7 @@ use std::{
     str::FromStr,
     sync::{Arc, RwLock},
 };
+use tracing::Instrument;
 
 use axum::{
     extract::State,
@@ -82,24 +82,31 @@ pub async fn handler(
     // header, which the SDK does not send.
     body: String,
 ) -> impl IntoResponse {
-    tracing::debug!(?uri, ?method, ?operation, "handler invoked");
-    tracing::trace!(?headers, "with headers");
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let span = tracing::debug_span!("request", request_id = request_id);
 
-    // parse the body
-    let res = match operation {
-        OperationType::CreateTable => handle_create_table(manager, body).await,
-        OperationType::PutItem => handle_put_item(manager, body).await,
-        OperationType::DescribeTable => handle_describe_table(manager, body).await,
-        OperationType::DeleteTable => handle_delete_table(manager, body).await,
-        OperationType::Query => handle_query(manager, body).await,
-    };
-    match res {
-        Ok(res) => Ok(res),
-        Err(e) => {
-            tracing::warn!(error = ?e, "error handling request");
-            Err((StatusCode::BAD_REQUEST, format!("{e:?}")))
+    async move {
+        tracing::debug!(?uri, ?method, ?operation, "handler invoked");
+        tracing::trace!(?headers, "with headers");
+
+        // parse the body
+        let res = match operation {
+            OperationType::CreateTable => handle_create_table(manager, body).await,
+            OperationType::PutItem => handle_put_item(manager, body).await,
+            OperationType::DescribeTable => handle_describe_table(manager, body).await,
+            OperationType::DeleteTable => handle_delete_table(manager, body).await,
+            OperationType::Query => handle_query(manager, body).await,
+        };
+        match res {
+            Ok(res) => Ok(res),
+            Err(e) => {
+                tracing::warn!(error = ?e, "error handling request");
+                Err((StatusCode::BAD_REQUEST, format!("{e:?}")))
+            }
         }
     }
+    .instrument(span)
+    .await
 }
 
 async fn handle_query(
