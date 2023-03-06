@@ -8,9 +8,13 @@ use aws_sdk_dynamodb::{
     Client,
 };
 use eyre::{Context, Result};
+use tracing_subscriber::EnvFilter;
 
 fn test_init() {
-    let _ = tracing_subscriber::fmt::try_init();
+    let _ = tracing_subscriber::fmt()
+        .pretty()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init();
 
     // only create new snapshots when targeting AWS
     let insta_envar_value = if targetting_aws() { "always" } else { "no" };
