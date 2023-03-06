@@ -47,6 +47,18 @@ impl TableManager {
 
         None
     }
+
+    pub fn get_table_mut(&mut self, table_name: &str) -> Option<&mut table::Table> {
+        for account in self.per_account.values_mut() {
+            for table in account.tables.values_mut() {
+                if table.name == table_name {
+                    return Some(table);
+                }
+            }
+        }
+
+        None
+    }
 }
 
 #[derive(Default)]

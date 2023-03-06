@@ -1,4 +1,4 @@
-use std::{future::Future, time::Duration};
+use std::{collections::HashMap, future::Future, time::Duration};
 
 use aws_sdk_dynamodb::{
     model::{
@@ -320,11 +320,45 @@ async fn round_trip() {
                 .await
                 .wrap_err("performing query")?;
 
-            let result = std::panic::catch_unwind(|| {
-                insta::assert_debug_snapshot!(res);
-            });
+            // TODO: we have to sort the returned items somehow, or else the snapshotting won't
+            // work.
 
-            result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
+            let expected_items = {
+                let mut h = HashMap::new();
+                h.insert("pk".to_string(), AttributeValue::S("abc".to_string()));
+                h.insert("sk".to_string(), AttributeValue::S("def".to_string()));
+                h
+            };
+            let expected_output = aws_sdk_dynamodb::output::QueryOutput::builder()
+                .items(expected_items)
+                .count(1)
+                .scanned_count(1)
+                .build();
+
+            assert_eq!(res, expected_output);
+
+            Ok(())
+
+            //             let result = insta::with_settings!({ filters => vec![
+            //                 // table name
+            //                 (r"table-[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-name]"),
+            //                 // region
+            //                 (r"(eu-west-2|us-east-1)", "[region]"),
+            //                 // account id
+            //                 (r"[0-9]{12}", "[account]"),
+            //                 // table id
+            //                 (r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-id]"),
+            //                 // datetime seconds
+            //                 (r"seconds:\s*\d+", "[seconds]"),
+            //                 // datetime nanoseconds
+            //                 (r"subsecond_nanos:\s*\d+", "[nanos]"),
+            //             ] }, {
+            //                 std::panic::catch_unwind(|| {
+            //                     insta::assert_debug_snapshot!(res);
+            //                 })
+            //             });
+
+            // result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
         }))
     })
     .await

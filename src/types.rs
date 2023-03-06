@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +32,7 @@ pub enum KeyType {
     RANGE,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AttributeType {
     S,
 }
@@ -65,7 +67,10 @@ pub struct TableDescription {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
-pub struct PutItemInput {}
+pub struct PutItemInput {
+    pub table_name: String,
+    pub item: HashMap<String, HashMap<String, String>>,
+}
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
@@ -79,7 +84,11 @@ pub struct DescribeTableOutput {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
-pub struct QueryOutput {}
+pub struct QueryOutput {
+    pub items: Vec<HashMap<String, HashMap<String, String>>>,
+    pub count: usize,
+    pub scanned_count: usize,
+}
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
@@ -115,4 +124,12 @@ impl Default for ProvisionedThroughputDescription {
             last_decrease_date_time: None,
         }
     }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct QueryInput {
+    pub table_name: String,
+    pub key_condition_expression: String,
+    pub expression_attribute_values: HashMap<String, HashMap<AttributeType, String>>,
 }

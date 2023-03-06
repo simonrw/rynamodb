@@ -1398,6 +1398,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+ "serde_dynamo",
  "serde_json",
  "thiserror",
  "tokio",
@@ -1490,6 +1491,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_dynamo"
+version = "4.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "942d371dc47cb746dd7c69cf02d22967ac8031bb300cc5eeec0494fa8fe08c7e"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
