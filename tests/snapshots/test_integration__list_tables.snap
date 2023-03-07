@@ -1,0 +1,12 @@
+---
+source: tests/test_integration.rs
+expression: res
+---
+ListTablesOutput {
+    table_names: Some(
+        [
+            "[table-name]",
+        ],
+    ),
+    last_evaluated_table_name: None,
+}

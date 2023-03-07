@@ -68,6 +68,16 @@ impl TableManager {
 
         None
     }
+
+    pub fn table_names(&self) -> Vec<String> {
+        let mut table_names = Vec::new();
+        for account in self.per_account.values() {
+            for table in account.tables.values() {
+                table_names.push(table.name.clone());
+            }
+        }
+        table_names
+    }
 }
 
 #[derive(Default)]

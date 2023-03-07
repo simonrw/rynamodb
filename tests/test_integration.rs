@@ -252,6 +252,33 @@ async fn put_item() -> Result<()> {
 }
 
 #[tokio::test]
+async fn list_tables() {
+    test_init();
+
+    with_table(|_table_name, client| {
+        Box::new(Box::pin(async move {
+            let res = client
+                .list_tables()
+                .send()
+                .await
+                .wrap_err("listing tables")?;
+
+            insta::with_settings!({ filters => vec![
+                // table name
+                (r"table-[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-name]"),
+            ]}, {
+                std::panic::catch_unwind(|| {
+                    insta::assert_debug_snapshot!(res);
+                })
+                .map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
+            })
+        }))
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn round_trip() {
     test_init();
 

@@ -17,6 +17,8 @@ use axum::{
     Json, Router,
 };
 
+use crate::types::ListTablesOutput;
+
 mod extractors;
 mod table;
 mod table_manager;
@@ -55,6 +57,7 @@ pub enum OperationType {
     DeleteTable,
     Query,
     GetItem,
+    ListTables,
 }
 
 impl FromStr for OperationType {
@@ -68,6 +71,7 @@ impl FromStr for OperationType {
             "DeleteTable" => Ok(OperationType::DeleteTable),
             "Query" => Ok(OperationType::Query),
             "GetItem" => Ok(OperationType::GetItem),
+            "ListTables" => Ok(OperationType::ListTables),
             s => Err(format!("operation {s} not handled")),
         }
     }
@@ -129,6 +133,7 @@ pub async fn handler(
             OperationType::DeleteTable => handle_delete_table(manager, body).await,
             OperationType::Query => handle_query(manager, body).await,
             OperationType::GetItem => handle_get_item(manager, body).await,
+            OperationType::ListTables => handle_list_tables(manager, body).await,
         };
         match res {
             Ok(res) => Ok(res),
@@ -143,6 +148,23 @@ pub async fn handler(
     }
     .instrument(span)
     .await
+}
+
+async fn handle_list_tables(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    tracing::debug!("handling list_tables");
+    let _input: types::ListTablesInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+
+    // TODO: input handling
+    let unlocked_manager = manager.read().unwrap();
+    let table_names = unlocked_manager.table_names();
+    tracing::debug!(?table_names, "found table names");
+
+    Ok(Json(types::Response::ListTables(ListTablesOutput {
+        table_names,
+    })))
 }
 
 async fn handle_get_item(
