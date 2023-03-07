@@ -103,6 +103,7 @@ pub enum Response {
     DescribeTable(DescribeTableOutput),
     Query(QueryOutput),
     DeleteTable(DeleteTableOutput),
+    GetItem(GetItemOutput),
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -134,4 +135,17 @@ pub struct QueryInput {
     pub key_condition_expression: String,
     pub expression_attribute_names: Option<HashMap<String, String>>,
     pub expression_attribute_values: Option<HashMap<String, HashMap<AttributeType, String>>>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct GetItemInput {
+    pub table_name: String,
+    pub key: HashMap<String, HashMap<AttributeType, String>>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct GetItemOutput {
+    pub item: Option<HashMap<String, HashMap<String, String>>>,
 }

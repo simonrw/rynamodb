@@ -54,6 +54,7 @@ pub enum OperationType {
     DescribeTable,
     DeleteTable,
     Query,
+    GetItem,
 }
 
 impl FromStr for OperationType {
@@ -66,6 +67,7 @@ impl FromStr for OperationType {
             "DescribeTable" => Ok(OperationType::DescribeTable),
             "DeleteTable" => Ok(OperationType::DeleteTable),
             "Query" => Ok(OperationType::Query),
+            "GetItem" => Ok(OperationType::GetItem),
             s => Err(format!("operation {s} not handled")),
         }
     }
@@ -126,6 +128,7 @@ pub async fn handler(
             OperationType::DescribeTable => handle_describe_table(manager, body).await,
             OperationType::DeleteTable => handle_delete_table(manager, body).await,
             OperationType::Query => handle_query(manager, body).await,
+            OperationType::GetItem => handle_get_item(manager, body).await,
         };
         match res {
             Ok(res) => Ok(res),
@@ -140,6 +143,44 @@ pub async fn handler(
     }
     .instrument(span)
     .await
+}
+
+async fn handle_get_item(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    tracing::debug!("handling get_item");
+    let input: types::GetItemInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    tracing::debug!(?input, "parsed input");
+
+    let unlocked_manager = manager.read().unwrap();
+    let table = unlocked_manager
+        .get_table(&input.table_name)
+        .ok_or_else(|| eyre::eyre!("no table found"))?;
+    tracing::debug!(table_name = ?input.table_name, "found table");
+
+    // res is HashMap<String, serde_json::AttributeValue> but we want HashMap<String, HashMap<String, String>>
+    let res = table.get_item(input.key).map(|h| {
+        h.into_iter()
+            .map(|(k, v)| {
+                let mapped_value = match v {
+                    serde_dynamo::AttributeValue::S(s) => {
+                        let mut h = HashMap::new();
+                        h.insert("S".to_string(), s);
+                        h
+                    }
+                    _ => todo!(),
+                };
+                (k, mapped_value)
+            })
+            .collect()
+    });
+
+    tracing::debug!(result = ?res, "found result");
+
+    Ok(Json(types::Response::GetItem(types::GetItemOutput {
+        item: res,
+    })))
 }
 
 async fn handle_query(
