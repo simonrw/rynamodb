@@ -321,6 +321,103 @@ async fn round_trip() {
     .unwrap();
 }
 
+#[tokio::test]
+#[ignore]
+async fn get_item() {
+    test_init();
+
+    // check that we can insert and fetch data from rynamodb
+    with_table(|table_name, client| {
+        Box::new(Box::pin(async move {
+            client
+                .put_item()
+                .table_name(&table_name)
+                .item("pk", AttributeValue::S("abc".to_string()))
+                .item("sk", AttributeValue::S("def".to_string()))
+                .item("value", AttributeValue::S("ghi".to_string()))
+                .send()
+                .await
+                .wrap_err("inserting item")?;
+
+            let res = client
+                .get_item()
+                .table_name(&table_name)
+                .key("pk", AttributeValue::S("abc".to_string()))
+                .key("sk", AttributeValue::S("def".to_string()))
+                .send()
+                .await
+                .wrap_err("getting item that exists")?;
+
+            let r1 = insta::with_settings!({ filters => vec![
+                // table name
+                (r"table-[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-name]"),
+                // region
+                (r"(eu-west-2|us-east-1)", "[region]"),
+                // account id
+                (r"[0-9]{12}", "[account]"),
+                // table id
+                (r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-id]"),
+                // datetime seconds
+                (r"seconds:\s*\d+", "[seconds]"),
+                // datetime nanoseconds
+                (r"subsecond_nanos:\s*\d+", "[nanos]"),
+            ] }, {
+                std::panic::catch_unwind(|| {
+                    insta::assert_debug_snapshot!(res);
+                })
+            });
+
+            // get an item that doesnt exist
+            let res = client
+                .get_item()
+                .table_name(&table_name)
+                .key("pk", AttributeValue::S("something-else".to_string()))
+                .key("sk", AttributeValue::S("def".to_string()))
+                .send()
+                .await
+                .wrap_err("getting item that does not exists")?;
+
+            let r2 = insta::with_settings!({ filters => vec![
+                // table name
+                (r"table-[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-name]"),
+                // region
+                (r"(eu-west-2|us-east-1)", "[region]"),
+                // account id
+                (r"[0-9]{12}", "[account]"),
+                // table id
+                (r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-id]"),
+                // datetime seconds
+                (r"seconds:\s*\d+", "[seconds]"),
+                // datetime nanoseconds
+                (r"subsecond_nanos:\s*\d+", "[nanos]"),
+            ] }, {
+                std::panic::catch_unwind(|| {
+                    insta::assert_debug_snapshot!(res);
+                })
+            });
+
+            match (r1, r2) {
+                (Err(e), Ok(_)) => {
+                    panic!("getting item that exists failed: {e:?}");
+                }
+                (Ok(_), Err(e)) => {
+                    panic!("getting item that does not exist failed: {e:?}");
+                },
+                (Err(e1), Err(e2)) => {
+                    panic!("getting both items failed: e1: {e1:?}, e2: {e2:?}");
+                },
+                _ => {}
+
+            }
+
+
+            Ok(())
+        }))
+    })
+    .await
+    .unwrap();
+}
+
 async fn create_client(endpoint_url: Option<&str>) -> aws_sdk_dynamodb::Client {
     match endpoint_url {
         Some(url) => {
