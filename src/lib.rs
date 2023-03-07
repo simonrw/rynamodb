@@ -64,7 +64,7 @@ impl FromStr for OperationType {
             "DescribeTable" => Ok(OperationType::DescribeTable),
             "DeleteTable" => Ok(OperationType::DeleteTable),
             "Query" => Ok(OperationType::Query),
-            _ => todo!("parsing operation {s}"),
+            s => Err(format!("operation {s} not handled")),
         }
     }
 }
@@ -73,10 +73,7 @@ pub async fn handler(
     uri: Uri,
     method: Method,
     headers: HeaderMap,
-    extractors::Operation {
-        version: _version,
-        name: operation,
-    }: extractors::Operation,
+    operation_extractor: std::result::Result<extractors::Operation, (StatusCode, String)>,
     State(manager): State<Arc<RwLock<table_manager::TableManager>>>,
     // we cannot use the Json extractor since it requires the `Content-Type: application/json`
     // header, which the SDK does not send.
@@ -84,6 +81,16 @@ pub async fn handler(
 ) -> impl IntoResponse {
     let request_id = uuid::Uuid::new_v4().to_string();
     let span = tracing::debug_span!("request", request_id = request_id);
+
+    let extractors::Operation {
+        name: operation, ..
+    } = operation_extractor.map_err(|e| {
+        tracing::error!(error = ?e, "operation unhandled");
+        (
+            StatusCode::NOT_IMPLEMENTED,
+            format!("unhandled operation: {e:?}"),
+        )
+    })?;
 
     async move {
         tracing::debug!(?uri, ?method, ?operation, "handler invoked");
