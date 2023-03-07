@@ -1,6 +1,8 @@
 use eyre::{Context, Result};
+use serde::Serialize;
 use std::{
     collections::HashMap,
+    convert::Infallible,
     future::Future,
     str::FromStr,
     sync::{Arc, RwLock},
@@ -52,6 +54,7 @@ pub enum OperationType {
     DescribeTable,
     DeleteTable,
     Query,
+    GetItem,
 }
 
 impl FromStr for OperationType {
@@ -64,8 +67,30 @@ impl FromStr for OperationType {
             "DescribeTable" => Ok(OperationType::DescribeTable),
             "DeleteTable" => Ok(OperationType::DeleteTable),
             "Query" => Ok(OperationType::Query),
-            _ => todo!("parsing operation {s}"),
+            "GetItem" => Ok(OperationType::GetItem),
+            s => Err(format!("operation {s} not handled")),
         }
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub struct ErrorResponse {
+    message: String,
+}
+
+impl FromStr for ErrorResponse {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(ErrorResponse {
+            message: s.to_string(),
+        })
+    }
+}
+
+impl IntoResponse for ErrorResponse {
+    fn into_response(self) -> axum::response::Response {
+        Json(self).into_response()
     }
 }
 
@@ -73,17 +98,24 @@ pub async fn handler(
     uri: Uri,
     method: Method,
     headers: HeaderMap,
-    extractors::Operation {
-        version: _version,
-        name: operation,
-    }: extractors::Operation,
+    operation_extractor: std::result::Result<extractors::Operation, (StatusCode, String)>,
     State(manager): State<Arc<RwLock<table_manager::TableManager>>>,
     // we cannot use the Json extractor since it requires the `Content-Type: application/json`
     // header, which the SDK does not send.
     body: String,
-) -> impl IntoResponse {
+) -> Result<Json<types::Response>, (StatusCode, ErrorResponse)> {
     let request_id = uuid::Uuid::new_v4().to_string();
     let span = tracing::debug_span!("request", request_id = request_id);
+
+    let extractors::Operation {
+        name: operation, ..
+    } = operation_extractor.or_else(|e| {
+        tracing::error!(error = ?e, "operation unhandled");
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            ErrorResponse::from_str(&format!("unhandled operation: {e:?}")).unwrap(),
+        ))
+    })?;
 
     async move {
         tracing::debug!(?uri, ?method, ?operation, "handler invoked");
@@ -96,17 +128,59 @@ pub async fn handler(
             OperationType::DescribeTable => handle_describe_table(manager, body).await,
             OperationType::DeleteTable => handle_delete_table(manager, body).await,
             OperationType::Query => handle_query(manager, body).await,
+            OperationType::GetItem => handle_get_item(manager, body).await,
         };
         match res {
             Ok(res) => Ok(res),
             Err(e) => {
                 tracing::warn!(error = ?e, "error handling request");
-                Err((StatusCode::BAD_REQUEST, format!("{e:?}")))
+                Err((
+                    StatusCode::BAD_REQUEST,
+                    ErrorResponse::from_str(&format!("{e:?}")).unwrap(),
+                ))
             }
         }
     }
     .instrument(span)
     .await
+}
+
+async fn handle_get_item(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    tracing::debug!("handling get_item");
+    let input: types::GetItemInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    tracing::debug!(?input, "parsed input");
+
+    let unlocked_manager = manager.read().unwrap();
+    let table = unlocked_manager
+        .get_table(&input.table_name)
+        .ok_or_else(|| eyre::eyre!("no table found"))?;
+    tracing::debug!(table_name = ?input.table_name, "found table");
+
+    // res is HashMap<String, serde_json::AttributeValue> but we want HashMap<String, HashMap<String, String>>
+    let res = table.get_item(input.key).map(|h| {
+        h.into_iter()
+            .map(|(k, v)| {
+                let mapped_value = match v {
+                    serde_dynamo::AttributeValue::S(s) => {
+                        let mut h = HashMap::new();
+                        h.insert("S".to_string(), s);
+                        h
+                    }
+                    _ => todo!(),
+                };
+                (k, mapped_value)
+            })
+            .collect()
+    });
+
+    tracing::debug!(result = ?res, "found result");
+
+    Ok(Json(types::Response::GetItem(types::GetItemOutput {
+        item: res,
+    })))
 }
 
 async fn handle_query(

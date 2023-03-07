@@ -5,6 +5,7 @@ use aws_sdk_dynamodb::{
         AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
         ScalarAttributeType,
     },
+    output::GetItemOutput,
     Client,
 };
 use eyre::{Context, Result};
@@ -315,6 +316,61 @@ async fn round_trip() {
             //             });
 
             // result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
+        }))
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn get_item() {
+    test_init();
+
+    // check that we can insert and fetch data from rynamodb
+    with_table(|table_name, client| {
+        Box::new(Box::pin(async move {
+            client
+                .put_item()
+                .table_name(&table_name)
+                .item("pk", AttributeValue::S("abc".to_string()))
+                .item("sk", AttributeValue::S("def".to_string()))
+                .item("value", AttributeValue::S("ghi".to_string()))
+                .send()
+                .await
+                .wrap_err("inserting item")?;
+
+            let res = client
+                .get_item()
+                .table_name(&table_name)
+                .key("pk", AttributeValue::S("abc".to_string()))
+                .key("sk", AttributeValue::S("def".to_string()))
+                .send()
+                .await
+                .wrap_err("getting item that exists")?;
+
+            // similar to queries, the sort is unstable so we have to compare the result without
+            // using snapshots :(
+            let expected = GetItemOutput::builder()
+                .item("pk", AttributeValue::S("abc".to_string()))
+                .item("sk", AttributeValue::S("def".to_string()))
+                .item("value", AttributeValue::S("ghi".to_string()))
+                .build();
+            assert_eq!(res, expected);
+
+            // get an item that doesnt exist
+            let res = client
+                .get_item()
+                .table_name(&table_name)
+                .key("pk", AttributeValue::S("something-else".to_string()))
+                .key("sk", AttributeValue::S("def".to_string()))
+                .send()
+                .await
+                .wrap_err("getting item that does not exists")?;
+
+            let expected = GetItemOutput::builder().build();
+            assert_eq!(res, expected);
+
+            Ok(())
         }))
     })
     .await

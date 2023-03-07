@@ -126,7 +126,7 @@ impl Table {
         self.partitions.values().map(|p| p.item_count()).sum()
     }
 
-    pub(crate) fn query(
+    pub fn query(
         &self,
         key_condition_expression: &str,
         expression_attribute_names: &Option<HashMap<String, String>>,
@@ -181,6 +181,26 @@ impl Table {
                 }
             }
             _ => todo!(),
+        }
+    }
+
+    // key is something like {"pk": {"S": "def"}, "sk": {"S": "ghj"}}
+    pub fn get_item(
+        &self,
+        key: HashMap<String, HashMap<types::AttributeType, String>>,
+    ) -> Option<HashMap<String, serde_dynamo::AttributeValue>> {
+        assert!(key.len() >= 1);
+
+        let partition_name = key
+            .get(&self.partition_key)?
+            .get(&types::AttributeType::S)?;
+        let partition = self.partitions.get(partition_name)?;
+
+        if let Some(sort_key) = &self.sort_key {
+            let sort_key_value = key.get(sort_key)?.get(&types::AttributeType::S)?;
+            partition.get_item(sort_key, sort_key_value.as_str())
+        } else {
+            partition.get_by_pk_only()
         }
     }
 }
@@ -255,6 +275,30 @@ impl Partition {
             },
             _ => todo!("unhandled query for secondary: {ast:?}"),
         }
+    }
+
+    fn get_by_pk_only(&self) -> Option<HashMap<String, serde_dynamo::AttributeValue>> {
+        self.rows.iter().cloned().next()
+    }
+
+    fn get_item(
+        &self,
+        sort_key_name: &str,
+        sort_key_value: &str,
+    ) -> Option<HashMap<String, serde_dynamo::AttributeValue>> {
+        for row in &self.rows {
+            let sk_value = row.get(sort_key_name)?;
+            match sk_value {
+                serde_dynamo::AttributeValue::S(sort_key) => {
+                    if sort_key == sort_key_value {
+                        return Some(row.clone());
+                    }
+                }
+                _ => todo!("{sk_value:?}"),
+            }
+        }
+
+        None
     }
 
     pub fn item_count(&self) -> usize {

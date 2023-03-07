@@ -1,0 +1,8 @@
+---
+source: tests/test_integration.rs
+expression: res
+---
+GetItemOutput {
+    item: None,
+    consumed_capacity: None,
+}
