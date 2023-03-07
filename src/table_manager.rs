@@ -78,10 +78,24 @@ impl TableManager {
         }
         table_names
     }
+
+    pub fn delete_table(&mut self, table_name: &str) -> Result<()> {
+        for account in self.per_account.values_mut() {
+            account.remove(table_name);
+        }
+        Ok(())
+    }
 }
 
 #[derive(Default)]
 pub struct TablesPerRegion {
     // map from region to table
     pub tables: HashMap<Region, table::Table>,
+}
+
+impl TablesPerRegion {
+    fn remove(&mut self, table_name: &str) {
+        self.tables
+            .retain(|_region, table| table.name != table_name);
+    }
 }

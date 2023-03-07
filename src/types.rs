@@ -160,3 +160,9 @@ pub struct ListTablesInput {}
 pub struct ListTablesOutput {
     pub table_names: Vec<String>,
 }
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct DeleteTableInput {
+    pub table_name: String,
+}

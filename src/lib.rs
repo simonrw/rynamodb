@@ -263,10 +263,17 @@ async fn handle_query(
 }
 
 async fn handle_delete_table(
-    _manager: Arc<RwLock<table_manager::TableManager>>,
-    _body: String,
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
 ) -> Result<Json<types::Response>> {
-    tracing::debug!("handling delete table");
+    tracing::debug!(%body, "handling delete table");
+
+    let input: types::DeleteTableInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    tracing::debug!(?input, "parsed input");
+
+    let mut unlocked_manager = manager.write().unwrap();
+    unlocked_manager.delete_table(&input.table_name)?;
+
     Ok(Json(types::Response::DeleteTable(
         types::DeleteTableOutput {},
     )))

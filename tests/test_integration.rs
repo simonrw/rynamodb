@@ -18,16 +18,16 @@ fn test_init() {
         .try_init();
 
     // only create new snapshots when targeting AWS
-    let insta_envar_value = if targetting_aws() { "always" } else { "no" };
+    let insta_envar_value = if targeting_aws() { "always" } else { "no" };
     std::env::set_var("INSTA_UPDATE", insta_envar_value);
 }
 
-fn targetting_aws() -> bool {
+fn targeting_aws() -> bool {
     std::env::var("TEST_TARGET").unwrap_or_else(|_| String::new()) == "AWS_CLOUD"
 }
 
 async fn test_client(port: u16) -> Client {
-    if targetting_aws() {
+    if targeting_aws() {
         tracing::debug!("creating client against AWS");
         create_client(None).await
     } else {
@@ -36,6 +36,15 @@ async fn test_client(port: u16) -> Client {
         let client = create_client(Some(&endpoint_url)).await;
         client
     }
+}
+
+macro_rules! skip_aws_cloud {
+    () => {{
+        if targeting_aws() {
+            tracing::warn!("skipping test as we are targeting AWS");
+            return;
+        }
+    }};
 }
 
 async fn wait_for_table_creation(table_name: &str, client: &Client) -> Result<()> {
@@ -126,7 +135,7 @@ where
             // TODO: drop table
             match client.delete_table().table_name(&table_name).send().await {
                 Ok(_) => {}
-                Err(e) if targetting_aws() => {
+                Err(e) if targeting_aws() => {
                     return Err(eyre::eyre!("could not drop table {table_name}: {e:?}"));
                 }
                 _ => tracing::warn!(%table_name, "deleting table"),
@@ -212,7 +221,7 @@ async fn create_table() -> Result<()> {
             // delete the table
             match client.delete_table().table_name(&table_name).send().await {
                 Ok(_) => {}
-                Err(e) if targetting_aws() => {
+                Err(e) if targeting_aws() => {
                     return Err(eyre::eyre!("could not drop table {table_name}: {e:?}"));
                 }
                 _ => tracing::warn!(%table_name, "deleting table"),
@@ -224,6 +233,51 @@ async fn create_table() -> Result<()> {
     .await
     .expect("running test server framework");
     Ok(())
+}
+
+#[tokio::test]
+async fn delete_table() {
+    test_init();
+
+    skip_aws_cloud!();
+
+    let router = rynamodb::router();
+    rynamodb::test_run_server(router, |port| {
+        let table_names = vec![
+            format!("table-{}", uuid::Uuid::new_v4()),
+            format!("table-{}", uuid::Uuid::new_v4()),
+        ];
+        Box::new(Box::pin(async move {
+            let client = test_client(port).await;
+
+            for table_name in &table_names {
+                default_dynamodb_table(table_name, &client).await?;
+            }
+
+            let to_delete_table_name = &table_names[0];
+            let to_keep_table_name = &table_names[1];
+
+            client
+                .delete_table()
+                .table_name(to_delete_table_name)
+                .send()
+                .await?;
+
+            let res = client.list_tables().send().await?;
+
+            client
+                .delete_table()
+                .table_name(to_keep_table_name)
+                .send()
+                .await?;
+
+            assert_eq!(res.table_names, Some(vec![to_keep_table_name.to_string()]));
+
+            Ok(())
+        }))
+    })
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
