@@ -1,6 +1,8 @@
 use eyre::{Context, Result};
+use serde::Serialize;
 use std::{
     collections::HashMap,
+    convert::Infallible,
     future::Future,
     str::FromStr,
     sync::{Arc, RwLock},
@@ -69,6 +71,27 @@ impl FromStr for OperationType {
     }
 }
 
+#[derive(Serialize, Debug)]
+pub struct ErrorResponse {
+    message: String,
+}
+
+impl FromStr for ErrorResponse {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(ErrorResponse {
+            message: s.to_string(),
+        })
+    }
+}
+
+impl IntoResponse for ErrorResponse {
+    fn into_response(self) -> axum::response::Response {
+        Json(self).into_response()
+    }
+}
+
 pub async fn handler(
     uri: Uri,
     method: Method,
@@ -78,18 +101,18 @@ pub async fn handler(
     // we cannot use the Json extractor since it requires the `Content-Type: application/json`
     // header, which the SDK does not send.
     body: String,
-) -> impl IntoResponse {
+) -> Result<Json<types::Response>, (StatusCode, ErrorResponse)> {
     let request_id = uuid::Uuid::new_v4().to_string();
     let span = tracing::debug_span!("request", request_id = request_id);
 
     let extractors::Operation {
         name: operation, ..
-    } = operation_extractor.map_err(|e| {
+    } = operation_extractor.or_else(|e| {
         tracing::error!(error = ?e, "operation unhandled");
-        (
+        Err((
             StatusCode::NOT_IMPLEMENTED,
-            format!("unhandled operation: {e:?}"),
-        )
+            ErrorResponse::from_str(&format!("unhandled operation: {e:?}")).unwrap(),
+        ))
     })?;
 
     async move {
@@ -108,7 +131,10 @@ pub async fn handler(
             Ok(res) => Ok(res),
             Err(e) => {
                 tracing::warn!(error = ?e, "error handling request");
-                Err((StatusCode::BAD_REQUEST, format!("{e:?}")))
+                Err((
+                    StatusCode::BAD_REQUEST,
+                    ErrorResponse::from_str(&format!("{e:?}")).unwrap(),
+                ))
             }
         }
     }
