@@ -227,6 +227,31 @@ async fn create_table() -> Result<()> {
 }
 
 #[tokio::test]
+async fn delete_table() {
+    test_init();
+
+    let router = rynamodb::router();
+    rynamodb::test_run_server(router, |port| {
+        let table_name = format!("table-{}", uuid::Uuid::new_v4());
+        Box::new(Box::pin(async move {
+            let client = test_client(port).await;
+
+            default_dynamodb_table(&table_name, &client).await?;
+
+            client.delete_table().table_name(&table_name).send().await?;
+
+            let res = client.list_tables().send().await?;
+
+            assert_eq!(res.table_names.unwrap().len(), 0);
+
+            Ok(())
+        }))
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn put_item() -> Result<()> {
     test_init();
 
