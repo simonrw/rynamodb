@@ -2,7 +2,10 @@ use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::types::{self, AttributeDefinition, AttributeType, KeySchema, KeyType};
+use crate::{
+    table_manager::Region,
+    types::{self, AttributeDefinition, AttributeType, KeySchema, KeyType},
+};
 
 use self::queries::{Node, Operator};
 
@@ -43,13 +46,18 @@ pub struct Table {
 }
 
 impl Table {
-    pub fn new(options: TableOptions) -> Self {
+    pub fn new(region: Region, account: impl Into<String>, options: TableOptions) -> Self {
+        let table_name = options.name;
         Self {
-            name: options.name,
+            name: table_name.clone(),
             partition_key: options.partition_key,
             sort_key: options.sort_key,
             attribute_definitions: options.attribute_definitions,
-            arn: "arn:aws:dynamodb:eu-west-2:678133472802:table/table-d787c77d-76d4-473e-8165-b006241c6a5d".to_string(),
+            arn: format!(
+                "arn:aws:dynamodb:{region}:{account}:table/{name}",
+                account = account.into(),
+                name = &table_name,
+            ),
             table_id: uuid::Uuid::new_v4().to_string(),
             ..Default::default()
         }
@@ -263,21 +271,25 @@ mod tests {
     }
 
     fn default_table() -> Table {
-        let table = Table::new(TableOptions {
-            name: format!("table-{}", uuid::Uuid::new_v4()),
-            partition_key: "pk".to_string(),
-            sort_key: Some("sk".to_string()),
-            attribute_definitions: vec![
-                AttributeDefinition {
-                    attribute_name: "pk".to_string(),
-                    attribute_type: AttributeType::S,
-                },
-                AttributeDefinition {
-                    attribute_name: "sk".to_string(),
-                    attribute_type: AttributeType::S,
-                },
-            ],
-        });
+        let table = Table::new(
+            Region::UsEast1,
+            crate::DEFAULT_ACCOUNT_ID,
+            TableOptions {
+                name: format!("table-{}", uuid::Uuid::new_v4()),
+                partition_key: "pk".to_string(),
+                sort_key: Some("sk".to_string()),
+                attribute_definitions: vec![
+                    AttributeDefinition {
+                        attribute_name: "pk".to_string(),
+                        attribute_type: AttributeType::S,
+                    },
+                    AttributeDefinition {
+                        attribute_name: "sk".to_string(),
+                        attribute_type: AttributeType::S,
+                    },
+                ],
+            },
+        );
 
         table
     }

@@ -20,7 +20,7 @@ mod table;
 mod table_manager;
 mod types;
 
-static ACCOUNT_ID: &str = "000000000000";
+pub static DEFAULT_ACCOUNT_ID: &str = "000000000000";
 
 pub async fn run_server(router: Router, port: u16) -> Result<()> {
     let addr = format!("127.0.0.1:{port}").parse().unwrap();
@@ -242,7 +242,8 @@ async fn handle_create_table(
 
     // lock: not great, but probably ok for now
     let mut unlocked_manager = manager.write().unwrap();
-    let table = unlocked_manager.new_table(ACCOUNT_ID, table_manager::Region::UsEast1, input)?;
+    let table =
+        unlocked_manager.new_table(DEFAULT_ACCOUNT_ID, table_manager::Region::UsEast1, input)?;
 
     Ok(Json(types::Response::CreateTable(
         types::CreateTableOutput {

@@ -38,8 +38,8 @@ $ aws --endpoint-url http://localhost:3050 dynamodb create-table --table-name fo
         },
         "TableSizeBytes": 0,
         "ItemCount": 0,
-        "TableArn": "arn:aws:dynamodb:eu-west-2:678133472802:table/table-d787c77d-76d4-473e-8165-b006241c6a5d",
-        "TableId": "90d9a4e1-7970-4565-b004-61f9d441afaa"
+        "TableArn": "arn:aws:dynamodb:us-east-1:000000000000:table/foo",
+        "TableId": "35e8ca72-b025-476f-822c-0030928860e6"
     }
 }
 ```

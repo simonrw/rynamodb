@@ -1,5 +1,6 @@
 use eyre::Result;
 use std::collections::HashMap;
+use std::fmt;
 
 use crate::{table, types};
 
@@ -11,6 +12,14 @@ pub enum Region {
 impl Default for Region {
     fn default() -> Self {
         Self::UsEast1
+    }
+}
+
+impl fmt::Display for Region {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Region::UsEast1 => write!(f, "us-east-1"),
+        }
     }
 }
 
@@ -28,9 +37,9 @@ impl TableManager {
         region: Region,
         input: types::CreateTableInput,
     ) -> Result<table::Table> {
-        let table = table::Table::new(input.into());
-
         let account_id = account.into();
+        let table = table::Table::new(region, &account_id, input.into());
+
         let entry = self.per_account.entry(account_id).or_default();
         entry.tables.insert(region, table.clone());
         Ok(table)
