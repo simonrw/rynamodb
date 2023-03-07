@@ -104,6 +104,7 @@ pub enum Response {
     Query(QueryOutput),
     DeleteTable(DeleteTableOutput),
     GetItem(GetItemOutput),
+    ListTables(ListTablesOutput),
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -148,4 +149,14 @@ pub struct GetItemInput {
 #[serde(rename_all = "PascalCase")]
 pub struct GetItemOutput {
     pub item: Option<HashMap<String, HashMap<String, String>>>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct ListTablesInput {}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct ListTablesOutput {
+    pub table_names: Vec<String>,
 }

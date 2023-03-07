@@ -252,7 +252,6 @@ async fn put_item() -> Result<()> {
 }
 
 #[tokio::test]
-#[ignore]
 async fn list_tables() {
     test_init();
 
@@ -264,10 +263,15 @@ async fn list_tables() {
                 .await
                 .wrap_err("listing tables")?;
 
-            std::panic::catch_unwind(|| {
-                insta::assert_debug_snapshot!(res);
+            insta::with_settings!({ filters => vec![
+                // table name
+                (r"table-[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "[table-name]"),
+            ]}, {
+                std::panic::catch_unwind(|| {
+                    insta::assert_debug_snapshot!(res);
+                })
+                .map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
             })
-            .map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
         }))
     })
     .await
