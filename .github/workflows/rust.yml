@@ -30,8 +30,4 @@ jobs:
     - name: rust-cargo
       uses: actions-rs/cargo@v1.0.1
       with:
-        command: build
-    - name: rust-cargo
-      uses: actions-rs/cargo@v1.0.1
-      with:
         command: test
