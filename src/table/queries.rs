@@ -12,8 +12,8 @@ pub enum ParserError {
 }
 
 #[derive(pest_derive::Parser)]
-#[grammar = "grammar.pest"]
-struct DynamoDBParser;
+#[grammar = "query.pest"]
+struct QueryParser;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Node {
@@ -158,7 +158,7 @@ fn parse_condition(root: Pair<Rule>) -> Result<Node, ParserError> {
 }
 
 pub fn parse(input: &str) -> Result<Node, ParserError> {
-    let mut pairs = DynamoDBParser::parse(Rule::condition_expression, input).unwrap();
+    let mut pairs = QueryParser::parse(Rule::condition_expression, input).unwrap();
     let root = pairs
         .next()
         .ok_or(ParserError::Eoi)?
