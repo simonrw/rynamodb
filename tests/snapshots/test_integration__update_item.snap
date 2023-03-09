@@ -1,0 +1,21 @@
+---
+source: tests/test_integration.rs
+expression: res
+---
+UpdateItemOutput {
+    attributes: Some(
+        {
+            "value": S(
+                "another",
+            ),
+            "sk": S(
+                "456",
+            ),
+            "pk": S(
+                "123",
+            ),
+        },
+    ),
+    consumed_capacity: None,
+    item_collection_metrics: None,
+}

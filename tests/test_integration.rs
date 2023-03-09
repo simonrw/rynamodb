@@ -3,7 +3,7 @@ use std::{collections::HashMap, future::Future, time::Duration};
 use aws_sdk_dynamodb::{
     model::{
         AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
-        ScalarAttributeType,
+        ReturnValue, ScalarAttributeType,
     },
     output::GetItemOutput,
     Client,
@@ -400,6 +400,68 @@ async fn round_trip() {
             //             });
 
             // result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
+        }))
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+#[ignore]
+async fn update_item() {
+    test_init();
+
+    with_table(|table_name, client| {
+        Box::new(Box::pin(async move {
+            client
+                .put_item()
+                .table_name(&table_name)
+                .item("pk", AttributeValue::S("123".to_string()))
+                .item("sk", AttributeValue::S("456".to_string()))
+                .item("value", AttributeValue::S("789".to_string()))
+                .send()
+                .await
+                .wrap_err("inserting item")?;
+
+            let res = client
+                .update_item()
+                .table_name(&table_name)
+                .key("pk", AttributeValue::S("123".to_string()))
+                .key("sk", AttributeValue::S("456".to_string()))
+                .update_expression("SET #v = :r")
+                .expression_attribute_names("#v", "value")
+                .expression_attribute_values(":r", AttributeValue::S("another".to_string()))
+                .return_values(ReturnValue::AllNew)
+                .send()
+                .await
+                .wrap_err("updating item")?;
+
+            let r1 = std::panic::catch_unwind(|| {
+                insta::assert_debug_snapshot!(res);
+            });
+
+            dbg!(res);
+
+            let res = client
+                .get_item()
+                .table_name(&table_name)
+                .key("pk", AttributeValue::S("123".to_string()))
+                .key("sk", AttributeValue::S("456".to_string()))
+                .consistent_read(true)
+                .send()
+                .await
+                .wrap_err("getting item")?;
+
+            let r2 = std::panic::catch_unwind(|| {
+                insta::assert_debug_snapshot!(res);
+            });
+
+            match (r1, r2) {
+                (Ok(_), Ok(_)) => Ok(()),
+                (Err(e), Ok(())) => Err(eyre::eyre!("updating item failed: {e:?}")),
+                (Ok(()), Err(e)) => Err(eyre::eyre!("fetching item failed: {e:?}")),
+                (Err(e1), Err(e2)) => Err(eyre::eyre!("everything failed: {e1:?} + {e2:?}")),
+            }
         }))
     })
     .await

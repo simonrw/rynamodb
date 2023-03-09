@@ -58,6 +58,7 @@ pub enum OperationType {
     GetItem,
     ListTables,
     Scan,
+    UpdateItem,
 }
 
 impl FromStr for OperationType {
@@ -73,6 +74,7 @@ impl FromStr for OperationType {
             "GetItem" => Ok(OperationType::GetItem),
             "ListTables" => Ok(OperationType::ListTables),
             "Scan" => Ok(OperationType::Scan),
+            "UpdateItem" => Ok(OperationType::UpdateItem),
             s => Err(format!("operation {s} not handled")),
         }
     }
@@ -136,6 +138,7 @@ pub async fn handler(
             OperationType::GetItem => handle_get_item(manager, body).await,
             OperationType::ListTables => handle_list_tables(manager, body).await,
             OperationType::Scan => handle_scan(manager, body).await,
+            OperationType::UpdateItem => handle_update_item(manager, body).await,
         };
         match res {
             Ok(res) => Ok(res),
@@ -150,6 +153,13 @@ pub async fn handler(
     }
     .instrument(span)
     .await
+}
+
+async fn handle_update_item(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    todo!()
 }
 
 async fn handle_scan(

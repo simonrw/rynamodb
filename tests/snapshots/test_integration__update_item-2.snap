@@ -1,0 +1,20 @@
+---
+source: tests/test_integration.rs
+expression: res
+---
+GetItemOutput {
+    item: Some(
+        {
+            "pk": S(
+                "123",
+            ),
+            "value": S(
+                "another",
+            ),
+            "sk": S(
+                "456",
+            ),
+        },
+    ),
+    consumed_capacity: None,
+}
