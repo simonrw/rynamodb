@@ -1,7 +1,32 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{de::Unexpected, Deserialize, Serialize};
+use serde_dynamo::AttributeValue;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct AttributeDefinition {
+    pub attribute_name: String,
+    #[serde(deserialize_with = "deserialize_attribute_type")]
+    pub attribute_type: AttributeType,
+}
+
+fn deserialize_attribute_type<'de, D>(deserializer: D) -> Result<AttributeType, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let buf = String::deserialize(deserializer)?;
+
+    match buf.as_str() {
+        "S" => Ok(AttributeType::S),
+        // TODO
+        s => Err(serde::de::Error::invalid_value(
+            Unexpected::Str(s),
+            &"a dynamodb definition of a type",
+        )),
+    }
+}
 
 /// The incoming payload for creating a table
 #[derive(Deserialize, Debug)]
@@ -12,13 +37,6 @@ pub struct CreateTableInput {
     pub key_schema: Vec<KeySchema>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct AttributeDefinition {
-    pub attribute_name: String,
-    pub attribute_type: AttributeType,
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct KeySchema {
@@ -26,16 +44,16 @@ pub struct KeySchema {
     pub key_type: KeyType,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub enum AttributeType {
+    S,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum KeyType {
     HASH,
     RANGE,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum AttributeType {
-    S,
 }
 
 #[derive(Deserialize, Debug)]
@@ -70,7 +88,7 @@ pub struct TableDescription {
 #[serde(rename_all = "PascalCase")]
 pub struct PutItemInput {
     pub table_name: String,
-    pub item: HashMap<String, HashMap<String, String>>,
+    pub item: HashMap<String, AttributeValue>,
 }
 
 #[derive(Serialize, Debug)]
@@ -86,7 +104,7 @@ pub struct DescribeTableOutput {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct QueryOutput {
-    pub items: Vec<HashMap<String, HashMap<String, String>>>,
+    pub items: Vec<HashMap<String, AttributeValue>>,
     pub count: usize,
     pub scanned_count: usize,
 }
@@ -135,20 +153,20 @@ pub struct QueryInput {
     pub table_name: String,
     pub key_condition_expression: String,
     pub expression_attribute_names: Option<HashMap<String, String>>,
-    pub expression_attribute_values: Option<HashMap<String, HashMap<AttributeType, String>>>,
+    pub expression_attribute_values: Option<HashMap<String, AttributeValue>>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct GetItemInput {
     pub table_name: String,
-    pub key: HashMap<String, HashMap<AttributeType, String>>,
+    pub key: HashMap<String, AttributeValue>,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct GetItemOutput {
-    pub item: Option<HashMap<String, HashMap<String, String>>>,
+    pub item: Option<HashMap<String, AttributeValue>>,
 }
 
 #[derive(Deserialize, Debug)]
