@@ -156,8 +156,8 @@ pub async fn handler(
 }
 
 async fn handle_update_item(
-    manager: Arc<RwLock<table_manager::TableManager>>,
-    body: String,
+    _manager: Arc<RwLock<table_manager::TableManager>>,
+    _body: String,
 ) -> Result<Json<types::Response>> {
     todo!()
 }

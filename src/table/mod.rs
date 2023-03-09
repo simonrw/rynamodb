@@ -8,17 +8,17 @@ use crate::{
     types::{self, AttributeDefinition, KeySchema, KeyType},
 };
 
-use self::queries::{Node, Operator};
-
-mod queries;
+mod parsers;
 mod visitor;
+
+use self::parsers::query;
 
 #[derive(Debug, Error)]
 pub enum TableError {
     #[error("missing partition key")]
     MissingPartitionKey,
     #[error("parsing condition expression")]
-    ParseError(#[from] queries::ParserError),
+    ParseError(#[from] parsers::ParserError),
     #[error("partition key specified is not valid")]
     InvalidPartitionKey,
     #[error("attribute name {0} not supplied")]
@@ -130,7 +130,7 @@ impl Table {
         expression_attribute_names: &Option<HashMap<String, String>>,
         expression_attribute_values: &Option<HashMap<String, AttributeValue>>,
     ) -> Result<Vec<HashMap<String, AttributeValue>>> {
-        let ast = queries::parse(key_condition_expression)?;
+        let ast = query::parse(key_condition_expression)?;
         // remove placeholders
         let placeholder_remover =
             visitor::NodeVisitor::new(expression_attribute_names, expression_attribute_values);
@@ -138,9 +138,9 @@ impl Table {
 
         match ast {
             // simple equality check with the partition key
-            Node::Binop { op, lhs, rhs } if op == queries::Operator::Eq => {
+            query::Node::Binop { op, lhs, rhs } if op == query::Operator::Eq => {
                 match (lhs.as_ref(), rhs.as_ref()) {
-                    (Node::Attribute(key), Node::Attribute(value)) => {
+                    (query::Node::Attribute(key), query::Node::Attribute(value)) => {
                         if key != &self.partition_key {
                             return Err(TableError::InvalidPartitionKey);
                         }
@@ -153,17 +153,17 @@ impl Table {
                     (l, r) => unreachable!("lhs: {l:?} rhs: {r:?}"),
                 }
             }
-            Node::Binop { op, lhs, rhs } if op == queries::Operator::And => {
+            query::Node::Binop { op, lhs, rhs } if op == query::Operator::And => {
                 // TODO: assume the lhs is the primary key for now
                 let pk_query = lhs.as_ref();
                 match pk_query {
-                    Node::Binop {
+                    query::Node::Binop {
                         lhs: pk_lhs,
                         rhs: pk_rhs,
                         // operator _must_ be =
                         ..
                     } => match (pk_lhs.as_ref(), pk_rhs.as_ref()) {
-                        (Node::Attribute(_), Node::Attribute(value)) => {
+                        (query::Node::Attribute(_), query::Node::Attribute(value)) => {
                             let partition = self
                                 .partitions
                                 .get(value)
@@ -267,10 +267,14 @@ impl Partition {
         self.rows.push(attributes);
     }
 
-    fn query(&self, ast: Node) -> Result<Vec<HashMap<String, AttributeValue>>> {
+    fn query(&self, ast: query::Node) -> Result<Vec<HashMap<String, AttributeValue>>> {
         match ast {
-            Node::Binop { lhs, rhs, op } => match (lhs.as_ref(), rhs.as_ref(), op) {
-                (Node::Attribute(key), Node::Attribute(value), Operator::Eq) => Ok(self
+            query::Node::Binop { lhs, rhs, op } => match (lhs.as_ref(), rhs.as_ref(), op) {
+                (
+                    query::Node::Attribute(key),
+                    query::Node::Attribute(value),
+                    query::Operator::Eq,
+                ) => Ok(self
                     .rows
                     .iter()
                     .filter(|row| {
