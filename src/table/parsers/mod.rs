@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 pub mod query;
+pub mod update_item;
 
 #[derive(Debug, Error)]
 pub enum ParserError {
