@@ -2,7 +2,7 @@ use eyre::Result;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::{table, types};
+use crate::{sync_actor::SyncActorImpl, table, types};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Region {
@@ -97,5 +97,15 @@ impl TablesPerRegion {
     fn remove(&mut self, table_name: &str) {
         self.tables
             .retain(|_region, table| table.name != table_name);
+    }
+}
+
+pub enum Message {}
+
+impl SyncActorImpl for TableManager {
+    type Message = Message;
+
+    fn handle_message(&mut self, message: Self::Message) -> crate::sync_actor::ShutdownState {
+        match message {}
     }
 }
