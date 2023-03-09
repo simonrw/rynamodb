@@ -187,7 +187,7 @@ impl Table {
         &self,
         key: HashMap<String, AttributeValue>,
     ) -> Option<HashMap<String, serde_dynamo::AttributeValue>> {
-        assert!(key.len() >= 1);
+        assert!(!key.is_empty());
 
         let partition_name = key.get(&self.partition_key).map(|k| match k {
             AttributeValue::S(s) => s,
@@ -280,7 +280,7 @@ impl Partition {
     }
 
     fn get_by_pk_only(&self) -> Option<HashMap<String, AttributeValue>> {
-        self.rows.iter().cloned().next()
+        self.rows.first().cloned()
     }
 
     fn get_item(

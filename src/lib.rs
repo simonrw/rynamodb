@@ -112,12 +112,12 @@ pub async fn handler(
 
     let extractors::Operation {
         name: operation, ..
-    } = operation_extractor.or_else(|e| {
+    } = operation_extractor.map_err(|e| {
         tracing::error!(error = ?e, "operation unhandled");
-        Err((
+        (
             StatusCode::NOT_IMPLEMENTED,
             ErrorResponse::from_str(&format!("unhandled operation: {e:?}")).unwrap(),
-        ))
+        )
     })?;
 
     async move {
