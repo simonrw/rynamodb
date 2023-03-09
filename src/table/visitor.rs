@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::types::AttributeType;
+use serde_dynamo::AttributeValue;
 
 use super::queries::Node;
 
@@ -48,13 +48,13 @@ pub trait Visitor {
 /// Responsible for visiting all nodes in an AST and potentially performing transforms
 pub struct NodeVisitor<'a> {
     expression_attribute_names: &'a Option<HashMap<String, String>>,
-    expression_attribute_values: &'a Option<HashMap<String, HashMap<AttributeType, String>>>,
+    expression_attribute_values: &'a Option<HashMap<String, AttributeValue>>,
 }
 
 impl<'a> NodeVisitor<'a> {
     pub fn new(
         expression_attribute_names: &'a Option<HashMap<String, String>>,
-        expression_attribute_values: &'a Option<HashMap<String, HashMap<AttributeType, String>>>,
+        expression_attribute_values: &'a Option<HashMap<String, AttributeValue>>,
     ) -> Self {
         Self {
             expression_attribute_names,
@@ -96,11 +96,10 @@ impl<'a> Visitor for NodeVisitor<'a> {
             .as_ref()
             .and_then(|values| values.get(&value_key))
         {
-            let value = possible_values
-                .values()
-                .next()
-                .expect("attribute values map empty");
-            *n = Node::Attribute(value.to_string());
+            match possible_values {
+                AttributeValue::S(s) => *n = Node::Attribute(s.clone()),
+                _ => todo!(),
+            }
             return;
         }
 
@@ -137,18 +136,10 @@ mod tests {
             Some(h)
         };
 
-        macro_rules! attr {
-            ($name:expr) => {{
-                let mut h = HashMap::new();
-                h.insert(AttributeType::S, $name.to_string());
-                h
-            }};
-        }
-
         let expression_attribute_values = {
             let mut h = HashMap::new();
-            h.insert(":b".to_string(), attr!("f"));
-            h.insert(":d".to_string(), attr!("h"));
+            h.insert(":b".to_string(), AttributeValue::S("f".to_string()));
+            h.insert(":d".to_string(), AttributeValue::S("h".to_string()));
             Some(h)
         };
 

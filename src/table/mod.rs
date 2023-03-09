@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
+use serde_dynamo::AttributeValue;
 use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::{
     table_manager::Region,
-    types::{self, AttributeDefinition, AttributeType, KeySchema, KeyType},
+    types::{self, AttributeDefinition, KeySchema, KeyType},
 };
 
 use self::queries::{Node, Operator};
@@ -63,10 +64,7 @@ impl Table {
         }
     }
 
-    pub fn insert(
-        &mut self,
-        attributes: HashMap<String, serde_dynamo::AttributeValue>,
-    ) -> Result<()> {
+    pub fn insert(&mut self, attributes: HashMap<String, AttributeValue>) -> Result<()> {
         let partition_key_value = attributes
             .get(&self.partition_key)
             .ok_or(TableError::MissingPartitionKey)?;
@@ -130,8 +128,8 @@ impl Table {
         &self,
         key_condition_expression: &str,
         expression_attribute_names: &Option<HashMap<String, String>>,
-        expression_attribute_values: &Option<HashMap<String, HashMap<AttributeType, String>>>,
-    ) -> Result<Vec<HashMap<String, serde_dynamo::AttributeValue>>> {
+        expression_attribute_values: &Option<HashMap<String, AttributeValue>>,
+    ) -> Result<Vec<HashMap<String, AttributeValue>>> {
         let ast = queries::parse(key_condition_expression)?;
         // remove placeholders
         let placeholder_remover =
@@ -187,17 +185,21 @@ impl Table {
     // key is something like {"pk": {"S": "def"}, "sk": {"S": "ghj"}}
     pub fn get_item(
         &self,
-        key: HashMap<String, HashMap<types::AttributeType, String>>,
+        key: HashMap<String, AttributeValue>,
     ) -> Option<HashMap<String, serde_dynamo::AttributeValue>> {
-        assert!(key.len() >= 1);
+        assert!(!key.is_empty());
 
-        let partition_name = key
-            .get(&self.partition_key)?
-            .get(&types::AttributeType::S)?;
+        let partition_name = key.get(&self.partition_key).map(|k| match k {
+            AttributeValue::S(s) => s,
+            _ => unreachable!(),
+        })?;
         let partition = self.partitions.get(partition_name)?;
 
         if let Some(sort_key) = &self.sort_key {
-            let sort_key_value = key.get(sort_key)?.get(&types::AttributeType::S)?;
+            let sort_key_value = key.get(sort_key).map(|k| match k {
+                AttributeValue::S(s) => s,
+                _ => unreachable!(),
+            })?;
             partition.get_item(sort_key, sort_key_value.as_str())
         } else {
             partition.get_by_pk_only()
@@ -214,7 +216,7 @@ pub struct TableOptions {
     pub name: String,
     pub partition_key: String,
     pub sort_key: Option<String>,
-    pub attribute_definitions: Vec<types::AttributeDefinition>,
+    pub attribute_definitions: Vec<AttributeDefinition>,
 }
 
 impl From<types::CreateTableInput> for TableOptions {
@@ -247,15 +249,15 @@ impl From<types::CreateTableInput> for TableOptions {
 
 #[derive(Default, Clone)]
 pub struct Partition {
-    rows: Vec<HashMap<String, serde_dynamo::AttributeValue>>,
+    rows: Vec<HashMap<String, AttributeValue>>,
 }
 
 impl Partition {
-    pub fn insert(&mut self, attributes: HashMap<String, serde_dynamo::AttributeValue>) {
+    pub fn insert(&mut self, attributes: HashMap<String, AttributeValue>) {
         self.rows.push(attributes);
     }
 
-    fn query(&self, ast: Node) -> Result<Vec<HashMap<String, serde_dynamo::AttributeValue>>> {
+    fn query(&self, ast: Node) -> Result<Vec<HashMap<String, AttributeValue>>> {
         match ast {
             Node::Binop { lhs, rhs, op } => match (lhs.as_ref(), rhs.as_ref(), op) {
                 (Node::Attribute(key), Node::Attribute(value), Operator::Eq) => Ok(self
@@ -277,15 +279,15 @@ impl Partition {
         }
     }
 
-    fn get_by_pk_only(&self) -> Option<HashMap<String, serde_dynamo::AttributeValue>> {
-        self.rows.iter().cloned().next()
+    fn get_by_pk_only(&self) -> Option<HashMap<String, AttributeValue>> {
+        self.rows.first().cloned()
     }
 
     fn get_item(
         &self,
         sort_key_name: &str,
         sort_key_value: &str,
-    ) -> Option<HashMap<String, serde_dynamo::AttributeValue>> {
+    ) -> Option<HashMap<String, AttributeValue>> {
         for row in &self.rows {
             let sk_value = row.get(sort_key_name)?;
             match sk_value {
@@ -308,6 +310,8 @@ impl Partition {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::AttributeType;
+
     use super::*;
 
     fn init_logging() {
@@ -342,7 +346,7 @@ mod tests {
         ($table:ident, $($key:expr => $value:expr),+) => {{
             let mut attributes = HashMap::new();
             $(
-                attributes.insert($key.to_string(), serde_dynamo::AttributeValue::S($value.to_string()));
+                attributes.insert($key.to_string(), AttributeValue::S($value.to_string()));
             )+
             $table.insert(attributes.clone()).unwrap();
             attributes
@@ -368,10 +372,7 @@ mod tests {
                 [("#K".to_string(), "pk".to_string())].into_iter().collect();
             let expression_attribute_values = {
                 let mut res = HashMap::new();
-                let placeholder: HashMap<_, _> = [(AttributeType::S, "abc".to_string())]
-                    .into_iter()
-                    .collect();
-                res.insert(":val".to_string(), placeholder);
+                res.insert(":val".to_string(), AttributeValue::S("abc".to_string()));
                 res
             };
 
@@ -419,15 +420,8 @@ mod tests {
             .collect();
             let expression_attribute_values = {
                 let mut res = HashMap::new();
-                let p1: HashMap<_, _> = [(AttributeType::S, "abc".to_string())]
-                    .into_iter()
-                    .collect();
-                let p2: HashMap<_, _> = [(AttributeType::S, "def".to_string())]
-                    .into_iter()
-                    .collect();
-
-                res.insert(":val".to_string(), p1);
-                res.insert(":other".to_string(), p2);
+                res.insert(":val".to_string(), AttributeValue::S("abc".to_string()));
+                res.insert(":other".to_string(), AttributeValue::S("def".to_string()));
                 res
             };
 

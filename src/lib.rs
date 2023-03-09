@@ -1,7 +1,6 @@
 use eyre::{Context, Result};
 use serde::Serialize;
 use std::{
-    collections::HashMap,
     convert::Infallible,
     future::Future,
     str::FromStr,
@@ -22,7 +21,7 @@ use crate::types::ListTablesOutput;
 mod extractors;
 mod table;
 mod table_manager;
-mod types;
+pub mod types;
 
 pub static DEFAULT_ACCOUNT_ID: &str = "000000000000";
 
@@ -113,12 +112,12 @@ pub async fn handler(
 
     let extractors::Operation {
         name: operation, ..
-    } = operation_extractor.or_else(|e| {
+    } = operation_extractor.map_err(|e| {
         tracing::error!(error = ?e, "operation unhandled");
-        Err((
+        (
             StatusCode::NOT_IMPLEMENTED,
             ErrorResponse::from_str(&format!("unhandled operation: {e:?}")).unwrap(),
-        ))
+        )
     })?;
 
     async move {
@@ -181,23 +180,7 @@ async fn handle_get_item(
         .ok_or_else(|| eyre::eyre!("no table found"))?;
     tracing::debug!(table_name = ?input.table_name, "found table");
 
-    // res is HashMap<String, serde_json::AttributeValue> but we want HashMap<String, HashMap<String, String>>
-    let res = table.get_item(input.key).map(|h| {
-        h.into_iter()
-            .map(|(k, v)| {
-                let mapped_value = match v {
-                    serde_dynamo::AttributeValue::S(s) => {
-                        let mut h = HashMap::new();
-                        h.insert("S".to_string(), s);
-                        h
-                    }
-                    _ => todo!(),
-                };
-                (k, mapped_value)
-            })
-            .collect()
-    });
-
+    let res = table.get_item(input.key);
     tracing::debug!(result = ?res, "found result");
 
     Ok(Json(types::Response::GetItem(types::GetItemOutput {
@@ -230,32 +213,9 @@ async fn handle_query(
         .wrap_err("performing query")?;
     tracing::debug!(result = ?res, "found result");
 
-    // have to transform to Vec<HashMap<String, HashMap<String, String>>>
-    let items: Vec<_> = res
-        .into_iter()
-        .map(|item: HashMap<String, serde_dynamo::AttributeValue>| {
-            item.into_iter()
-                .map(|(k, vs)| {
-                    use serde_dynamo::AttributeValue::*;
-
-                    let res = match vs {
-                        S(s) => {
-                            let mut h = HashMap::new();
-                            h.insert("S".to_string(), s);
-                            h
-                        }
-                        _ => todo!(),
-                    };
-
-                    (k, res)
-                })
-                .collect()
-        })
-        .collect();
-
-    let count = items.len();
+    let count = res.len();
     Ok(Json(types::Response::Query(types::QueryOutput {
-        items,
+        items: res,
         count,
         // TODO
         scanned_count: count,
@@ -289,19 +249,7 @@ async fn handle_put_item(
     tracing::debug!(?input, "parsed input");
 
     // convert the item to our representation
-    let attributes: HashMap<_, _> = input
-        .item
-        .into_iter()
-        .map(|(k, v)| {
-            let (attribute_type, value) = v.iter().next().unwrap();
-            let attribute = match attribute_type.as_str() {
-                "S" => serde_dynamo::AttributeValue::S(value.to_string()),
-                _ => todo!(),
-            };
-
-            (k, attribute)
-        })
-        .collect();
+    let attributes = input.item;
 
     let mut unlocked_manager = manager.write().unwrap();
     let table = unlocked_manager
@@ -337,7 +285,7 @@ async fn handle_create_table(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
 ) -> Result<Json<types::Response>> {
-    tracing::debug!("handling create table");
+    tracing::debug!(?body, "handling create table");
     // parse the input
 
     let input: types::CreateTableInput = serde_json::from_str(&body).wrap_err("invalid json")?;
