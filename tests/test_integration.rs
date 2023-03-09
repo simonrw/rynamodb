@@ -9,7 +9,6 @@ use aws_sdk_dynamodb::{
     Client,
 };
 use eyre::{Context, Result};
-use tracing_subscriber::EnvFilter;
 
 fn test_init() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -398,6 +397,92 @@ async fn round_trip() {
     })
     .await
     .unwrap();
+}
+
+#[tokio::test]
+async fn scan_table() {
+    test_init();
+
+    with_table(|table_name, client| {
+        Box::new(Box::pin(async move {
+            // add two items
+            client
+                .put_item()
+                .table_name(&table_name)
+                .item("pk", AttributeValue::S("123".to_string()))
+                .item("sk", AttributeValue::S("456".to_string()))
+                .item("value", AttributeValue::S("789".to_string()))
+                .send()
+                .await
+                .wrap_err("inserting item")?;
+
+            client
+                .put_item()
+                .table_name(&table_name)
+                .item("pk", AttributeValue::S("abc".to_string()))
+                .item("sk", AttributeValue::S("def".to_string()))
+                .item("value", AttributeValue::S("ghi".to_string()))
+                .send()
+                .await
+                .wrap_err("inserting item")?;
+
+            let res = client
+                .scan()
+                .table_name(&table_name)
+                .send()
+                .await
+                .wrap_err("scanning the table")?;
+
+            let expected_items1 = {
+                let mut h = HashMap::new();
+                h.insert("pk".to_string(), AttributeValue::S("123".to_string()));
+                h.insert("sk".to_string(), AttributeValue::S("456".to_string()));
+                h.insert("value".to_string(), AttributeValue::S("789".to_string()));
+                h
+            };
+
+            let expected_items2 = {
+                let mut h = HashMap::new();
+                h.insert("pk".to_string(), AttributeValue::S("abc".to_string()));
+                h.insert("sk".to_string(), AttributeValue::S("def".to_string()));
+                h.insert("value".to_string(), AttributeValue::S("ghi".to_string()));
+                h
+            };
+
+            let expected_output = aws_sdk_dynamodb::output::ScanOutput::builder()
+                .items(expected_items1)
+                .items(expected_items2)
+                .count(2)
+                .scanned_count(2)
+                .build();
+
+            assert_eq!(res, expected_output);
+
+            Ok(())
+        }))
+    })
+    .await
+    .unwrap();
+}
+
+#[derive(PartialEq, Debug)]
+struct SortableItem {
+    name: String,
+    value: AttributeValue,
+}
+
+impl Eq for SortableItem {}
+
+impl PartialOrd for SortableItem {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.name.partial_cmp(&other.name)
+    }
+}
+
+impl Ord for SortableItem {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name.cmp(&other.name)
+    }
 }
 
 #[tokio::test]

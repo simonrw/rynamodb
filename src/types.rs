@@ -184,3 +184,17 @@ pub struct ListTablesOutput {
 pub struct DeleteTableInput {
     pub table_name: String,
 }
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct ScanInput {
+    pub table_name: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct ScanOutput {
+    pub items: Vec<HashMap<String, HashMap<String, String>>>,
+    pub count: usize,
+    pub scanned_count: usize,
+}

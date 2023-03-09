@@ -1,0 +1,44 @@
+---
+source: tests/test_integration.rs
+expression: res
+---
+Some(
+    [
+        SortableItem {
+            name: "pk",
+            value: S(
+                "abc",
+            ),
+        },
+        SortableItem {
+            name: "pk",
+            value: S(
+                "123",
+            ),
+        },
+        SortableItem {
+            name: "sk",
+            value: S(
+                "def",
+            ),
+        },
+        SortableItem {
+            name: "sk",
+            value: S(
+                "456",
+            ),
+        },
+        SortableItem {
+            name: "value",
+            value: S(
+                "ghi",
+            ),
+        },
+        SortableItem {
+            name: "value",
+            value: S(
+                "789",
+            ),
+        },
+    ],
+)

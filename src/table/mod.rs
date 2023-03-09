@@ -182,6 +182,16 @@ impl Table {
         }
     }
 
+    // TODO: horrible memory behaviour - iterators?
+    pub fn scan(&self) -> Result<Vec<HashMap<String, serde_dynamo::AttributeValue>>> {
+        let mut out = Vec::new();
+        for partition in self.partitions.values() {
+            for item in &partition.rows {
+                out.push(item.clone());
+            }
+        }
+        Ok(out)
+    }
     // key is something like {"pk": {"S": "def"}, "sk": {"S": "ghj"}}
     pub fn get_item(
         &self,

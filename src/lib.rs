@@ -57,6 +57,7 @@ pub enum OperationType {
     Query,
     GetItem,
     ListTables,
+    Scan,
 }
 
 impl FromStr for OperationType {
@@ -71,6 +72,7 @@ impl FromStr for OperationType {
             "Query" => Ok(OperationType::Query),
             "GetItem" => Ok(OperationType::GetItem),
             "ListTables" => Ok(OperationType::ListTables),
+            "Scan" => Ok(OperationType::Scan),
             s => Err(format!("operation {s} not handled")),
         }
     }
@@ -133,6 +135,7 @@ pub async fn handler(
             OperationType::Query => handle_query(manager, body).await,
             OperationType::GetItem => handle_get_item(manager, body).await,
             OperationType::ListTables => handle_list_tables(manager, body).await,
+            OperationType::Scan => handle_scan(manager, body).await,
         };
         match res {
             Ok(res) => Ok(res),
@@ -147,6 +150,31 @@ pub async fn handler(
     }
     .instrument(span)
     .await
+}
+
+async fn handle_scan(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>> {
+    tracing::debug!("handling scan");
+    let input: types::ScanInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    tracing::debug!(?input, "parsed input");
+
+    let unlocked_manager = manager.read().unwrap();
+    let table = unlocked_manager
+        .get_table(&input.table_name)
+        .ok_or_else(|| eyre::eyre!("no table found"))?;
+    tracing::debug!(table_name = ?input.table_name, "found table");
+
+    let res = table.scan().wrap_err("performing scan")?;
+
+    let count = res.len();
+    Ok(Json(types::Response::Query(types::QueryOutput {
+        items: res,
+        count,
+        // TODO
+        scanned_count: count,
+    })))
 }
 
 async fn handle_list_tables(
