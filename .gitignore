@@ -1,4 +1,1 @@
-/target
-.direnv
-docs/*
-!docs/README.md
+target
