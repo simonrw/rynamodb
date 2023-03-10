@@ -20,6 +20,7 @@ pest_derive = "2.5.5"
 uuid = { version = "1.3.0", features = ["v4"] }
 chrono = { version = "0.4.23", features = ["serde"] }
 serde_dynamo = "4.1.0"
+dynamodb-expression-parser = { path = "../dynamodb-expression-parser" }
 
 [dev-dependencies]
 aws-config = "0.54.1"

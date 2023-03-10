@@ -8,17 +8,14 @@ use crate::{
     types::{self, AttributeDefinition, KeySchema, KeyType},
 };
 
-mod parsers;
-mod visitor;
-
-use self::parsers::query;
+use dynamodb_expression_parser::{query, visitor};
 
 #[derive(Debug, Error)]
 pub enum TableError {
     #[error("missing partition key")]
     MissingPartitionKey,
     #[error("parsing condition expression")]
-    ParseError(#[from] parsers::ParserError),
+    ParseError(#[from] dynamodb_expression_parser::ParserError),
     #[error("partition key specified is not valid")]
     InvalidPartitionKey,
     #[error("attribute name {0} not supplied")]

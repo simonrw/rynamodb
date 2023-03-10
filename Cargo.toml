@@ -1,5 +1,8 @@
 [workspace]
-members = ["rynamodb"]
+members = [
+    "rynamodb",
+    "dynamodb-expression-parser",
+]
 
 [profile.release]
 opt-level = "z"

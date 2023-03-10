@@ -651,6 +651,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dynamodb-expression-parser"
+version = "0.1.0"
+dependencies = [
+ "pest",
+ "pest_derive",
+ "serde_dynamo",
+ "thiserror",
+]
+
+[[package]]
 name = "either"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1386,6 +1396,7 @@ dependencies = [
  "axum",
  "chrono",
  "color-eyre",
+ "dynamodb-expression-parser",
  "eyre",
  "insta",
  "pest",

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde_dynamo::AttributeValue;
 
-use super::parsers::query::Node;
+use super::query::Node;
 
 pub fn walk_binop<V: Visitor + ?Sized>(v: &V, n: &mut Node) {
     match n {
@@ -109,7 +109,7 @@ impl<'a> Visitor for NodeVisitor<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::parsers::query::Operator;
+    use crate::query::Operator;
 
     use super::*;
 
