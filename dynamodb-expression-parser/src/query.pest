@@ -1,5 +1,3 @@
-WHITESPACE = _{ " " | "\t" | NEWLINE }
-
 condition_expression = {
     and_condition
   | condition
@@ -51,3 +49,5 @@ type    = {
     "S"
 }
 substr  = @{ "\"" ~ ASCII_ALPHA+ ~ "\"" }
+
+WHITESPACE = _{ " " | "\t" | NEWLINE }

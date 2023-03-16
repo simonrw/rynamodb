@@ -1,19 +1,9 @@
+use super::ParserError;
 use pest::{iterators::Pair, Parser};
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum ParserError {
-    #[error("parse error: {0}")]
-    ParseError(String),
-    #[error("end of items reached unexpectedly")]
-    Eoi,
-    #[error("can not convert node to string")]
-    NotStringlike,
-}
 
 #[derive(pest_derive::Parser)]
-#[grammar = "grammar.pest"]
-struct DynamoDBParser;
+#[grammar = "query.pest"]
+struct QueryParser;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Node {
@@ -158,7 +148,7 @@ fn parse_condition(root: Pair<Rule>) -> Result<Node, ParserError> {
 }
 
 pub fn parse(input: &str) -> Result<Node, ParserError> {
-    let mut pairs = DynamoDBParser::parse(Rule::condition_expression, input).unwrap();
+    let mut pairs = QueryParser::parse(Rule::condition_expression, input).unwrap();
     let root = pairs
         .next()
         .ok_or(ParserError::Eoi)?

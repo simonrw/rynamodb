@@ -1,0 +1,49 @@
+update_expression = {
+    ("SET" ~ set_action ~ ("," ~ set_action)*)
+  | ("REMOVE" ~ remove_action ~ ("," ~ remove_action)*)
+  | ("ADD" ~ add_action ~ ("," ~ add_action)*)
+  | ("DELETE" ~ delete_action ~ ("," ~ delete_action)*)
+}
+
+set_action = {
+    path ~ "=" ~ value
+}
+
+remove_action = { path }
+
+add_action = { path ~ value }
+
+delete_action = { path ~ value }
+
+value = {
+    operand
+  | operand ~ "+" ~ operand
+  | operand ~ "-" ~ operand
+}
+
+operand = {
+    path
+  | function
+}
+
+column_name       = @{ ASCII_ALPHA+ }
+key_placeholder   = @{ "#" ~ ASCII_ALPHA+ }
+value_placeholder = @{ ":" ~ ASCII_ALPHA+ }
+index = @{ "[" ~ ASCII_DIGIT+ ~ "]" }
+key               =  { (key_placeholder | value_placeholder | column_name) ~ index? }
+path              =  { key ~ ("." ~ key)* }
+
+type = {
+    "S"
+}
+
+function = {
+    list_append
+    | if_not_exists
+}
+
+list_append = { "list_append" ~ "(" ~ path ~ "," ~ path ~ ")" }
+if_not_exists = { "if_not_exists" ~ "(" ~ path ~ "," ~ path ~ ")" }
+
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+
