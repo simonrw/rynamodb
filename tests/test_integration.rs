@@ -16,6 +16,13 @@ fn test_init() {
     // only create new snapshots when targeting AWS
     let insta_envar_value = if targeting_aws() { "always" } else { "no" };
     std::env::set_var("INSTA_UPDATE", insta_envar_value);
+
+    // set some AWS envars
+    if !targeting_aws() {
+        std::env::set_var("AWS_REGION", "us-east-1");
+        std::env::set_var("AWS_ACCESS_KEY_ID", "test");
+        std::env::set_var("AWS_SECRET_ACCESS_KEY", "test");
+    }
 }
 
 fn targeting_aws() -> bool {
