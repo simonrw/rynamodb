@@ -19,6 +19,7 @@ use axum::{
 use crate::types::ListTablesOutput;
 
 mod extractors;
+pub mod sync_actor;
 mod table;
 mod table_manager;
 pub mod types;
