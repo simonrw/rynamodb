@@ -1,3 +1,8 @@
+<!-- [![Crates.io](https://img.shields.io/crates/v/cargo-index-transit.svg)](https://crates.io/crates/cargo-index-transit) -->
+<!-- [![Documentation](https://docs.rs/cargo-index-transit/badge.svg)](https://docs.rs/cargo-index-transit/) -->
+[![Codecov](https://codecov.io/github/simonrw/rynamodb/coverage.svg?branch=main)](https://codecov.io/gh/simonrw/rynamodb)
+[![Dependency status](https://deps.rs/repo/github/simonrw/rynamodb/status.svg)](https://deps.rs/repo/github/simonrw/rynamodb)
+
 # DynamoDB emulation layer in Rust
 
 ## Installation
