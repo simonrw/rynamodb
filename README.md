@@ -89,7 +89,7 @@ The test suite from [ScyllaDB alternator](https://github.com/scylladb/scylladb) 
 cargo run -- --port 8000
 
 # in another terminal
-pytest pytest-tests
+pytest compliance-tests
 ```
 
 ### Installing dependencies
