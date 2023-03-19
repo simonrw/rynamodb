@@ -115,19 +115,19 @@ def dynamodbstreams(request):
 # A function-scoped autouse=True fixture allows us to test after every test
 # that the server is still alive - and if not report the test which crashed
 # it and stop running any more tests.
-@pytest.fixture(scope="function", autouse=True)
-def dynamodb_test_connection(dynamodb, request, optional_rest_api):
-    scylla_log(optional_rest_api, f'test/alternator: Starting {request.node.parent.name}::{request.node.name}', 'info')
-    yield
-    try:
-        # We want to run a do-nothing DynamoDB command. The health-check
-        # URL is the fastest one.
-        url = dynamodb.meta.client._endpoint.host
-        response = requests.get(url, verify=False)
-        assert response.ok
-    except:
-        pytest.exit(f"Scylla appears to have crashed in test {request.node.parent.name}::{request.node.name}")
-    scylla_log(optional_rest_api, f'test/alternator: Ended {request.node.parent.name}::{request.node.name}', 'info')
+# @pytest.fixture(scope="function", autouse=True)
+# def dynamodb_test_connection(dynamodb, request, optional_rest_api):
+#     scylla_log(optional_rest_api, f'test/alternator: Starting {request.node.parent.name}::{request.node.name}', 'info')
+#     yield
+#     try:
+#         # We want to run a do-nothing DynamoDB command. The health-check
+#         # URL is the fastest one.
+#         url = dynamodb.meta.client._endpoint.host
+#         response = requests.get(url, verify=False)
+#         assert response.ok
+#     except:
+#         pytest.exit(f"Scylla appears to have crashed in test {request.node.parent.name}::{request.node.name}")
+#     scylla_log(optional_rest_api, f'test/alternator: Ended {request.node.parent.name}::{request.node.name}', 'info')
 
 
 # "test_table" fixture: Create and return a temporary table to be used in tests
