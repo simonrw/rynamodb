@@ -79,3 +79,29 @@ $ aws --endpoint-url http://localhost:3050 dynamodb query --table-name foo --key
 ```
 $ aws --endpoint-url http://localhost:3050 dynamodb delete-table --table-name foo
 ```
+
+## Integration tests
+
+The test suite from [ScyllaDB alternator](https://github.com/scylladb/scylladb) has been copied across and the tests can be run via:
+
+```bash
+# in one terminal
+cargo run -- --port 8000
+
+# in another terminal
+pytest compliance-tests
+```
+
+### Installing dependencies
+
+```bash
+# set up a python virtual environment
+python3 -m venv venv
+source ./venv/bin/activate
+
+# install dependencies
+pip install pytest boto3 requests
+
+# optionally install these pytest plugins
+pip install pytest-randomly pytest-instafail pytest-xdist
+```
