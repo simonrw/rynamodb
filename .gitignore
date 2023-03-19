@@ -2,3 +2,4 @@
 .direnv
 docs/*
 !docs/README.md
+*.pyc

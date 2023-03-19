@@ -23,6 +23,14 @@
           libiconv
           frameworks.Security
         ];
+
+        testPython = pkgs.python3.withPackages (ps: with ps; [
+          pytest
+          boto3
+          requests
+          pytest-randomly
+          pytest-instafail
+        ]);
       in
       {
         devShells = rec {
@@ -34,6 +42,7 @@
               clippy
               cargo-insta
               rustfmt
+              testPython
             ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin darwin-packages;
 
             shellHook = ":";
