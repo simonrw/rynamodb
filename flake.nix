@@ -30,6 +30,7 @@
           requests
           pytest-randomly
           pytest-instafail
+          pytest-xdist
         ]);
       in
       {

@@ -103,5 +103,5 @@ source ./venv/bin/activate
 pip install pytest boto3 requests
 
 # optionally install these pytest plugins
-pip install pytest-randomly pytest-instafail
+pip install pytest-randomly pytest-instafail pytest-xdist
 ```
