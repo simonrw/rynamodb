@@ -31,6 +31,7 @@
           pytest-randomly
           pytest-instafail
           pytest-xdist
+          pytest-timeout
         ]);
       in
       {
