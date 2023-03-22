@@ -24,6 +24,7 @@ jobs:
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
       # https://twitter.com/jonhoo/status/1571290371124260865
+      - uses: Swatinem/rust-cache@v2
       - name: cargo test --locked
         run: cargo test --locked --all-features --all-targets
   minimal:
@@ -41,6 +42,7 @@ jobs:
         run: rustup default stable
       - name: cargo update -Zminimal-versions
         run: cargo +nightly update -Zminimal-versions
+      - uses: Swatinem/rust-cache@v2
       - name: cargo test
         run: cargo test --locked --all-features --all-targets
   os-check:
@@ -59,6 +61,7 @@ jobs:
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      - uses: Swatinem/rust-cache@v2
       - name: cargo test
         run: cargo test --locked --all-features --all-targets
   coverage:
@@ -77,6 +80,7 @@ jobs:
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      - uses: Swatinem/rust-cache@v2
       - name: cargo llvm-cov
         run: cargo llvm-cov --locked --all-features --lcov --output-path lcov.info
       - name: Upload to codecov.io

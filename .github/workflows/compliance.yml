@@ -18,6 +18,7 @@ jobs:
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --release
       - name: Run the server in the background
