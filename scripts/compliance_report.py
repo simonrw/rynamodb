@@ -25,6 +25,8 @@ class Visitor(ContentHandler):
             f"""
             # Compliance test report
 
+            | Category | Count |
+            |--------| ---- | 
             | Errors | {self.errors} |
             | Failed | {self.failures} |
             | Skipped | {self.skipped} |
