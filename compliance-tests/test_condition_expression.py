@@ -2445,54 +2445,6 @@ def test_update_condition_unused_entries_short_circuit(test_table_s):
     }
 
 
-# Test a bunch of cases with permissive write isolation levels,
-# i.e. LWT_ALWAYS, LWT_RMW_ONLY and UNSAFE_RMW.
-# These test cases make sense only for alternator, so they're skipped
-# when run on AWS
-def test_condition_expression_with_permissive_write_isolation(
-    scylla_only, dynamodb, test_table_s
-):
-    try:
-        for isolation in ["a", "o", "u"]:
-            set_write_isolation(test_table_s, isolation)
-            for test_case in [
-                test_update_condition_eq_success,
-                test_update_condition_attribute_exists,
-                test_delete_item_condition,
-                test_put_item_condition,
-                test_update_condition_attribute_reference,
-            ]:
-                test_case(test_table_s)
-    finally:
-        clear_write_isolation(test_table_s)
-
-
-# Test that the forbid_rmw isolation level prevents read-modify-write requests
-# from working. These test cases make sense only for alternator, so they're skipped
-# when run on AWS (test_table_s_forbid_rmw implies scylla_only)
-def test_condition_expression_with_forbidden_rmw(dynamodb, test_table_s_forbid_rmw):
-    for test_case in [
-        test_update_condition_eq_success,
-        test_update_condition_attribute_exists,
-        test_put_item_condition,
-        test_update_condition_attribute_reference,
-    ]:
-        with pytest.raises(ClientError):
-            test_case(test_table_s_forbid_rmw)
-    # Ensure that regular writes (without rmw) work just fine
-    s = random_string()
-    test_table_s_forbid_rmw.put_item(Item={"p": s, "regular": "write"})
-    assert test_table_s_forbid_rmw.get_item(Key={"p": s}, ConsistentRead=True)[
-        "Item"
-    ] == {"p": s, "regular": "write"}
-    test_table_s_forbid_rmw.update_item(
-        Key={"p": s}, AttributeUpdates={"write": {"Value": "regular", "Action": "PUT"}}
-    )
-    assert test_table_s_forbid_rmw.get_item(Key={"p": s}, ConsistentRead=True)[
-        "Item"
-    ] == {"p": s, "regular": "write", "write": "regular"}
-
-
 # Reproducer for issue #6573: binary strings should be ordered as unsigned
 # bytes, i.e., byte 128 comes after 127, not before as with signed bytes.
 # Test the five ordering operators: <, <=, >, >=, between

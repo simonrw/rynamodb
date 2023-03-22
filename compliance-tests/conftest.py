@@ -157,24 +157,6 @@ def dynamodbstreams(request):
         )
 
 
-# A function-scoped autouse=True fixture allows us to test after every test
-# that the server is still alive - and if not report the test which crashed
-# it and stop running any more tests.
-# @pytest.fixture(scope="function", autouse=True)
-# def dynamodb_test_connection(dynamodb, request, optional_rest_api):
-#     scylla_log(optional_rest_api, f'test/alternator: Starting {request.node.parent.name}::{request.node.name}', 'info')
-#     yield
-#     try:
-#         # We want to run a do-nothing DynamoDB command. The health-check
-#         # URL is the fastest one.
-#         url = dynamodb.meta.client._endpoint.host
-#         response = requests.get(url, verify=False)
-#         assert response.ok
-#     except:
-#         pytest.exit(f"Scylla appears to have crashed in test {request.node.parent.name}::{request.node.name}")
-#     scylla_log(optional_rest_api, f'test/alternator: Ended {request.node.parent.name}::{request.node.name}', 'info')
-
-
 # "test_table" fixture: Create and return a temporary table to be used in tests
 # that need a table to work on. The table is automatically deleted at the end.
 # We use scope="session" so that all tests will reuse the same client object.
@@ -357,63 +339,3 @@ def filled_test_table(dynamodb):
 
     yield table, items
     table.delete()
-
-
-# The "scylla_only" fixture can be used by tests for Scylla-only features,
-# which do not exist on AWS DynamoDB. A test using this fixture will be
-# skipped if running with "--aws".
-@pytest.fixture(scope="session")
-def scylla_only(dynamodb):
-    if is_aws(dynamodb):
-        pytest.skip("Scylla-only feature not supported by AWS")
-
-
-# The "test_table_s_forbid_rmw" fixture is the same as test_table_s, except
-# with the "forbid_rmw" write isolation mode. This is useful for verifying
-# that writes that we think should not need a read-before-write in fact do
-# not need it.
-# Because forbid_rmw is a Scylla-only feature, this test is skipped when not
-# running against Scylla.
-@pytest.fixture(scope="session")
-def test_table_s_forbid_rmw(dynamodb, scylla_only):
-    table = create_test_table(
-        dynamodb,
-        KeySchema=[
-            {"AttributeName": "p", "KeyType": "HASH"},
-        ],
-        AttributeDefinitions=[{"AttributeName": "p", "AttributeType": "S"}],
-    )
-    arn = table.meta.client.describe_table(TableName=table.name)["Table"]["TableArn"]
-    table.meta.client.tag_resource(
-        ResourceArn=arn, Tags=[{"Key": "system:write_isolation", "Value": "forbid_rmw"}]
-    )
-    yield table
-    table.delete()
-
-
-# A fixture allowing to make Scylla-specific REST API requests.
-# If we're not testing Scylla, or the REST API port (10000) is not available,
-# the test using this fixture will be skipped with a message about the REST
-# API not being available.
-@pytest.fixture(scope="session")
-def rest_api(dynamodb, optional_rest_api):
-    if optional_rest_api is None:
-        pytest.skip("Cannot connect to Scylla REST API")
-    return optional_rest_api
-
-
-@pytest.fixture(scope="session")
-def optional_rest_api(dynamodb):
-    if is_aws(dynamodb):
-        return None
-    url = dynamodb.meta.client._endpoint.host
-    # The REST API is on port 10000, and always http, not https.
-    url = re.sub(r":[0-9]+(/|$)", ":10000", url)
-    url = re.sub(r"^https:", "http:", url)
-    # Scylla's REST API does not have an official "ping" command,
-    # so we just list the keyspaces as a (usually) short operation
-    try:
-        requests.get(f"{url}/column_family/name/keyspace", timeout=1).raise_for_status()
-    except:
-        return None
-    return url

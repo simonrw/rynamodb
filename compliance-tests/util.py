@@ -8,8 +8,6 @@ import string
 import random
 import collections
 import time
-import requests
-import pytest
 from contextlib import contextmanager
 from botocore.hooks import HierarchicalEmitter
 
@@ -248,34 +246,3 @@ def client_no_transform(client):
 
 def is_aws(dynamodb):
     return dynamodb.meta.client._endpoint.host.endswith(".amazonaws.com")
-
-
-# Tries to inject an error via Scylla REST API. It only works on Scylla,
-# and only in specific build modes (dev, debug, sanitize), so this function
-# will trigger a test to be skipped if it cannot be executed.
-@contextmanager
-def scylla_inject_error(rest_api, err, one_shot=False):
-    response = requests.post(
-        f"{rest_api}/v2/error_injection/injection/{err}?one_shot={one_shot}"
-    )
-    response = requests.get(f"{rest_api}/v2/error_injection/injection")
-    print("Enabled error injections:", response.content.decode("utf-8"))
-    if response.content.decode("utf-8") == "[]":
-        pytest.skip(
-            "Error injection not enabled in Scylla - try compiling in dev/debug/sanitize mode"
-        )
-    try:
-        yield
-    finally:
-        print("Disabling error injection", err)
-        response = requests.delete(f"{rest_api}/v2/error_injection/injection/{err}")
-
-
-# Send a message to the Scylla log. E.g., we can write a message to the log
-# indicating that a test has started, which will make it easier to see which
-# test caused which errors in the log.
-def scylla_log(optional_rest_api, message, level):
-    if optional_rest_api:
-        requests.post(
-            f"{optional_rest_api}/system/log?message={requests.utils.quote(message)}&level={level}"
-        )
