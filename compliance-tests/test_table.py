@@ -11,37 +11,32 @@ import pytest
 import time
 import threading
 from botocore.exceptions import ClientError
-from util import list_tables, unique_table_name, create_test_table, random_string, new_test_table
+from util import (
+    list_tables,
+    unique_table_name,
+    create_test_table,
+    random_string,
+    new_test_table,
+)
 
 # Utility function for create a table with a given name and some valid
 # schema.. This function initiates the table's creation, but doesn't
 # wait for the table to actually become ready.
-def create_table(dynamodb, name, BillingMode='PAY_PER_REQUEST', **kwargs):
+def create_table(dynamodb, name, BillingMode="PAY_PER_REQUEST", **kwargs):
     return dynamodb.create_table(
         TableName=name,
         BillingMode=BillingMode,
         KeySchema=[
-            {
-                'AttributeName': 'p',
-                'KeyType': 'HASH'
-            },
-            {
-                'AttributeName': 'c',
-                'KeyType': 'RANGE'
-            }
+            {"AttributeName": "p", "KeyType": "HASH"},
+            {"AttributeName": "c", "KeyType": "RANGE"},
         ],
         AttributeDefinitions=[
-            {
-                'AttributeName': 'p',
-                'AttributeType': 'S'
-            },
-            {
-                'AttributeName': 'c',
-                'AttributeType': 'S'
-            },
+            {"AttributeName": "p", "AttributeType": "S"},
+            {"AttributeName": "c", "AttributeType": "S"},
         ],
         **kwargs
     )
+
 
 # Utility function for creating a table with a given name, and then deleting
 # it immediately, waiting for these operations to complete. Since the wait
@@ -51,9 +46,10 @@ def create_table(dynamodb, name, BillingMode='PAY_PER_REQUEST', **kwargs):
 # successfully using this function are very slow.
 def create_and_delete_table(dynamodb, name, **kwargs):
     table = create_table(dynamodb, name, **kwargs)
-    table.meta.client.get_waiter('table_exists').wait(TableName=name)
+    table.meta.client.get_waiter("table_exists").wait(TableName=name)
     table.delete()
-    table.meta.client.get_waiter('table_not_exists').wait(TableName=name)
+    table.meta.client.get_waiter("table_not_exists").wait(TableName=name)
+
 
 ##############################################################################
 
@@ -64,30 +60,34 @@ def create_and_delete_table(dynamodb, name, **kwargs):
 # Unfortunately, this test is extremely slow with DynamoDB because deleting
 # a table is extremely slow until it really happens.
 def test_create_and_delete_table(dynamodb):
-    create_and_delete_table(dynamodb, 'alternator_test')
+    create_and_delete_table(dynamodb, "alternator_test")
+
 
 # Test that recreating a table right after deleting it works without issues
 def test_recreate_table(dynamodb):
-    create_and_delete_table(dynamodb, 'alternator_recr_test')
-    create_and_delete_table(dynamodb, 'alternator_recr_test')
+    create_and_delete_table(dynamodb, "alternator_recr_test")
+    create_and_delete_table(dynamodb, "alternator_recr_test")
+
 
 # DynamoDB documentation specifies that table names must be 3-255 characters,
 # and match the regex [a-zA-Z0-9._-]+. Names not matching these rules should
 # be rejected, and no table be created.
 def test_create_table_unsupported_names(dynamodb):
-    with pytest.raises(ClientError, match='ValidationException'):
-        create_table(dynamodb, 'n')
-    with pytest.raises(ClientError, match='ValidationException'):
-        create_table(dynamodb, 'nn')
-    with pytest.raises(ClientError, match='ValidationException'):
-        create_table(dynamodb, 'n' * 256)
-    with pytest.raises(ClientError, match='ValidationException'):
-        create_table(dynamodb, 'nyh@test')
+    with pytest.raises(ClientError, match="ValidationException"):
+        create_table(dynamodb, "n")
+    with pytest.raises(ClientError, match="ValidationException"):
+        create_table(dynamodb, "nn")
+    with pytest.raises(ClientError, match="ValidationException"):
+        create_table(dynamodb, "n" * 256)
+    with pytest.raises(ClientError, match="ValidationException"):
+        create_table(dynamodb, "nyh@test")
+
 
 # On the other hand, names following the above rules should be accepted. Even
 # names which the Scylla rules forbid, such as a name starting with .
 def test_create_and_delete_table_non_scylla_name(dynamodb):
-    create_and_delete_table(dynamodb, '.alternator_test')
+    create_and_delete_table(dynamodb, ".alternator_test")
+
 
 # names with 255 characters are allowed in Dynamo, but they are not currently
 # supported in Scylla because we create a directory whose name is the table's
@@ -95,99 +95,98 @@ def test_create_and_delete_table_non_scylla_name(dynamodb):
 # correctly support names with length up to 222.
 def test_create_and_delete_table_very_long_name(dynamodb):
     # In the future, this should work:
-    #create_and_delete_table(dynamodb, 'n' * 255)
+    # create_and_delete_table(dynamodb, 'n' * 255)
     # But for now, only 222 works:
-    create_and_delete_table(dynamodb, 'n' * 222)
+    create_and_delete_table(dynamodb, "n" * 222)
     # We cannot test the following on DynamoDB because it will succeed
     # (DynamoDB allows up to 255 bytes)
-    #with pytest.raises(ClientError, match='ValidationException'):
+    # with pytest.raises(ClientError, match='ValidationException'):
     #   create_table(dynamodb, 'n' * 223)
+
 
 # Tests creating a table with an invalid schema should return a
 # ValidationException error.
 def test_create_table_invalid_schema(dynamodb):
     # The name of the table "created" by this test shouldn't matter, the
     # creation should not succeed anyway.
-    with pytest.raises(ClientError, match='ValidationException'):
+    with pytest.raises(ClientError, match="ValidationException"):
         dynamodb.create_table(
-            TableName='name_doesnt_matter',
-            BillingMode='PAY_PER_REQUEST',
+            TableName="name_doesnt_matter",
+            BillingMode="PAY_PER_REQUEST",
             KeySchema=[
-                { 'AttributeName': 'p', 'KeyType': 'HASH' },
-                { 'AttributeName': 'c', 'KeyType': 'HASH' }
+                {"AttributeName": "p", "KeyType": "HASH"},
+                {"AttributeName": "c", "KeyType": "HASH"},
             ],
             AttributeDefinitions=[
-                { 'AttributeName': 'p', 'AttributeType': 'S' },
-                { 'AttributeName': 'c', 'AttributeType': 'S' },
+                {"AttributeName": "p", "AttributeType": "S"},
+                {"AttributeName": "c", "AttributeType": "S"},
             ],
         )
-    with pytest.raises(ClientError, match='ValidationException'):
+    with pytest.raises(ClientError, match="ValidationException"):
         dynamodb.create_table(
-            TableName='name_doesnt_matter',
-            BillingMode='PAY_PER_REQUEST',
+            TableName="name_doesnt_matter",
+            BillingMode="PAY_PER_REQUEST",
             KeySchema=[
-                { 'AttributeName': 'p', 'KeyType': 'RANGE' },
-                { 'AttributeName': 'c', 'KeyType': 'RANGE' }
+                {"AttributeName": "p", "KeyType": "RANGE"},
+                {"AttributeName": "c", "KeyType": "RANGE"},
             ],
             AttributeDefinitions=[
-                { 'AttributeName': 'p', 'AttributeType': 'S' },
-                { 'AttributeName': 'c', 'AttributeType': 'S' },
+                {"AttributeName": "p", "AttributeType": "S"},
+                {"AttributeName": "c", "AttributeType": "S"},
             ],
         )
-    with pytest.raises(ClientError, match='ValidationException'):
+    with pytest.raises(ClientError, match="ValidationException"):
         dynamodb.create_table(
-            TableName='name_doesnt_matter',
-            BillingMode='PAY_PER_REQUEST',
+            TableName="name_doesnt_matter",
+            BillingMode="PAY_PER_REQUEST",
+            KeySchema=[{"AttributeName": "c", "KeyType": "RANGE"}],
+            AttributeDefinitions=[
+                {"AttributeName": "c", "AttributeType": "S"},
+            ],
+        )
+    with pytest.raises(ClientError, match="ValidationException"):
+        dynamodb.create_table(
+            TableName="name_doesnt_matter",
+            BillingMode="PAY_PER_REQUEST",
             KeySchema=[
-                { 'AttributeName': 'c', 'KeyType': 'RANGE' }
+                {"AttributeName": "c", "KeyType": "HASH"},
+                {"AttributeName": "p", "KeyType": "RANGE"},
+                {"AttributeName": "z", "KeyType": "RANGE"},
             ],
             AttributeDefinitions=[
-                { 'AttributeName': 'c', 'AttributeType': 'S' },
+                {"AttributeName": "c", "AttributeType": "S"},
+                {"AttributeName": "p", "AttributeType": "S"},
+                {"AttributeName": "z", "AttributeType": "S"},
             ],
         )
-    with pytest.raises(ClientError, match='ValidationException'):
+    with pytest.raises(ClientError, match="ValidationException"):
         dynamodb.create_table(
-            TableName='name_doesnt_matter',
-            BillingMode='PAY_PER_REQUEST',
+            TableName="name_doesnt_matter",
+            BillingMode="PAY_PER_REQUEST",
             KeySchema=[
-                { 'AttributeName': 'c', 'KeyType': 'HASH' },
-                { 'AttributeName': 'p', 'KeyType': 'RANGE' },
-                { 'AttributeName': 'z', 'KeyType': 'RANGE' }
+                {"AttributeName": "c", "KeyType": "HASH"},
             ],
-            AttributeDefinitions=[
-                { 'AttributeName': 'c', 'AttributeType': 'S' },
-                { 'AttributeName': 'p', 'AttributeType': 'S' },
-                { 'AttributeName': 'z', 'AttributeType': 'S' }
-            ],
+            AttributeDefinitions=[{"AttributeName": "z", "AttributeType": "S"}],
         )
-    with pytest.raises(ClientError, match='ValidationException'):
+    with pytest.raises(ClientError, match="ValidationException"):
         dynamodb.create_table(
-            TableName='name_doesnt_matter',
-            BillingMode='PAY_PER_REQUEST',
+            TableName="name_doesnt_matter",
+            BillingMode="PAY_PER_REQUEST",
             KeySchema=[
-                { 'AttributeName': 'c', 'KeyType': 'HASH' },
+                {"AttributeName": "k", "KeyType": "HASH"},
             ],
-            AttributeDefinitions=[
-                { 'AttributeName': 'z', 'AttributeType': 'S' }
-            ],
+            AttributeDefinitions=[{"AttributeName": "k", "AttributeType": "Q"}],
         )
-    with pytest.raises(ClientError, match='ValidationException'):
-        dynamodb.create_table(
-            TableName='name_doesnt_matter',
-            BillingMode='PAY_PER_REQUEST',
-            KeySchema=[
-                { 'AttributeName': 'k', 'KeyType': 'HASH' },
-            ],
-            AttributeDefinitions=[
-                { 'AttributeName': 'k', 'AttributeType': 'Q' }
-            ],
-        )
+
 
 # Test that trying to create a table that already exists fails in the
 # appropriate way (ResourceInUseException)
 def test_create_table_already_exists(dynamodb, test_table):
-    with pytest.raises(ClientError, match='ResourceInUseException.*Table.*already exists'):
+    with pytest.raises(
+        ClientError, match="ResourceInUseException.*Table.*already exists"
+    ):
         create_table(dynamodb, test_table.name)
+
 
 # Test that BillingMode error path works as expected - only the values
 # PROVISIONED or PAY_PER_REQUEST are allowed. The former requires
@@ -195,28 +194,35 @@ def test_create_table_already_exists(dynamodb, test_table):
 # If BillingMode is outright missing, it defaults (as original
 # DynamoDB did) to PROVISIONED so ProvisionedThroughput is allowed.
 def test_create_table_billing_mode_errors(dynamodb, test_table):
-    with pytest.raises(ClientError, match='ValidationException'):
-        create_table(dynamodb, unique_table_name(), BillingMode='unknown')
+    with pytest.raises(ClientError, match="ValidationException"):
+        create_table(dynamodb, unique_table_name(), BillingMode="unknown")
     # billing mode is case-sensitive
-    with pytest.raises(ClientError, match='ValidationException'):
-        create_table(dynamodb, unique_table_name(), BillingMode='pay_per_request')
+    with pytest.raises(ClientError, match="ValidationException"):
+        create_table(dynamodb, unique_table_name(), BillingMode="pay_per_request")
     # PAY_PER_REQUEST cannot come with a ProvisionedThroughput:
-    with pytest.raises(ClientError, match='ValidationException'):
-        create_table(dynamodb, unique_table_name(),
-            BillingMode='PAY_PER_REQUEST', ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10})
+    with pytest.raises(ClientError, match="ValidationException"):
+        create_table(
+            dynamodb,
+            unique_table_name(),
+            BillingMode="PAY_PER_REQUEST",
+            ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
+        )
     # On the other hand, PROVISIONED requires ProvisionedThroughput:
     # By the way, ProvisionedThroughput not only needs to appear, it must
     # have both ReadCapacityUnits and WriteCapacityUnits - but we can't test
     # this with boto3, because boto3 has its own verification that if
     # ProvisionedThroughput is given, it must have the correct form.
-    with pytest.raises(ClientError, match='ValidationException'):
-        create_table(dynamodb, unique_table_name(), BillingMode='PROVISIONED')
+    with pytest.raises(ClientError, match="ValidationException"):
+        create_table(dynamodb, unique_table_name(), BillingMode="PROVISIONED")
     # If BillingMode is completely missing, it defaults to PROVISIONED, so
     # ProvisionedThroughput is required
-    with pytest.raises(ClientError, match='ValidationException'):
-        dynamodb.create_table(TableName=unique_table_name(),
-            KeySchema=[{ 'AttributeName': 'p', 'KeyType': 'HASH' }],
-            AttributeDefinitions=[{ 'AttributeName': 'p', 'AttributeType': 'S' }])
+    with pytest.raises(ClientError, match="ValidationException"):
+        dynamodb.create_table(
+            TableName=unique_table_name(),
+            KeySchema=[{"AttributeName": "p", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "p", "AttributeType": "S"}],
+        )
+
 
 # Even before Alternator gains full support for the DynamoDB stream API
 # and CreateTable's StreamSpecification option, we should support the
@@ -224,20 +230,24 @@ def test_create_table_billing_mode_errors(dynamodb, test_table):
 def test_table_streams_off(dynamodb):
     # If StreamSpecification is given, but has StreamEnabled=false, it's as
     # if StreamSpecification was missing. StreamViewType isn't needed.
-    table = create_test_table(dynamodb, StreamSpecification={'StreamEnabled': False},
-        KeySchema=[{ 'AttributeName': 'p', 'KeyType': 'HASH' }],
-        AttributeDefinitions=[{ 'AttributeName': 'p', 'AttributeType': 'S' }]);
-    table.delete();
+    table = create_test_table(
+        dynamodb,
+        StreamSpecification={"StreamEnabled": False},
+        KeySchema=[{"AttributeName": "p", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "p", "AttributeType": "S"}],
+    )
+    table.delete()
     # DynamoDB doesn't allow StreamSpecification to be empty map - if it
     # exists, it must have a StreamEnabled
     # Unfortunately, new versions of boto3 doesn't let us pass this...
-    #with pytest.raises(ClientError, match='ValidationException'):
+    # with pytest.raises(ClientError, match='ValidationException'):
     #    table = create_test_table(dynamodb, StreamSpecification={},
     #        KeySchema=[{ 'AttributeName': 'p', 'KeyType': 'HASH' }],
     #        AttributeDefinitions=[{ 'AttributeName': 'p', 'AttributeType': 'S' }]);
     #    table.delete();
     # Unfortunately, boto3 doesn't allow us to pass StreamSpecification=None.
     # This is what we had in issue #5796.
+
 
 # For tests with 'StreamEnabled': True, and different 'StreamViewType', see
 # test_streams.py.
@@ -252,26 +262,38 @@ def test_table_streams_off(dynamodb):
 # Reproduces #5009
 @pytest.mark.xfail(reason="#5009: name ':attrs' not allowed for key column")
 def test_create_table_special_column_name(dynamodb):
-    for c in ['attrs', ':attrs']:
+    for c in ["attrs", ":attrs"]:
         # Try the suspicious attribute name as a partition key:
-        with new_test_table(dynamodb,
-            KeySchema=[{ 'AttributeName': c, 'KeyType': 'HASH' }],
-            AttributeDefinitions=[{ 'AttributeName': c, 'AttributeType': 'S' }]) as table:
+        with new_test_table(
+            dynamodb,
+            KeySchema=[{"AttributeName": c, "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": c, "AttributeType": "S"}],
+        ) as table:
             s = random_string()
-            expected = {c: s, 'hello': random_string()}
+            expected = {c: s, "hello": random_string()}
             table.put_item(Item=expected)
-            assert expected == table.get_item(Key={c: s}, ConsistentRead=True)['Item']
+            assert expected == table.get_item(Key={c: s}, ConsistentRead=True)["Item"]
         # Try the suspicious attribute name as a clustering key:
-        with new_test_table(dynamodb,
-            KeySchema=[{ 'AttributeName': 'p', 'KeyType': 'HASH' },
-                       { 'AttributeName': c, 'KeyType': 'RANGE' }],
-            AttributeDefinitions=[{ 'AttributeName': 'p', 'AttributeType': 'S' },
-                                  { 'AttributeName': c, 'AttributeType': 'S' }]) as table:
+        with new_test_table(
+            dynamodb,
+            KeySchema=[
+                {"AttributeName": "p", "KeyType": "HASH"},
+                {"AttributeName": c, "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "p", "AttributeType": "S"},
+                {"AttributeName": c, "AttributeType": "S"},
+            ],
+        ) as table:
             p = random_string()
             s = random_string()
-            expected = {'p': p, c: s, 'hello': random_string()}
+            expected = {"p": p, c: s, "hello": random_string()}
             table.put_item(Item=expected)
-            assert expected == table.get_item(Key={'p': p, c: s}, ConsistentRead=True)['Item']
+            assert (
+                expected
+                == table.get_item(Key={"p": p, c: s}, ConsistentRead=True)["Item"]
+            )
+
 
 # Whereas test_create_table_special_column_name above tests what happen when
 # the name ":attrs" is used for a key column (partition key or sort key), in
@@ -282,64 +304,100 @@ def test_create_table_special_column_name(dynamodb):
 # these tests used to crash Scylla or otherwise fail.
 def test_special_attribute_name_putitem(test_table_s):
     p = random_string()
-    expected = {'p': p, ':attrs': random_string()}
+    expected = {"p": p, ":attrs": random_string()}
     test_table_s.put_item(Item=expected)
-    assert expected == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
+    assert expected == test_table_s.get_item(Key={"p": p}, ConsistentRead=True)["Item"]
+
 
 def test_special_attribute_name_updateitem_put(test_table_s):
     p = random_string()
     s = random_string()
-    test_table_s.update_item(Key={'p': p},
-        AttributeUpdates={':attrs': {'Value': s, 'Action': 'PUT'}})
-    assert {'p': p, ':attrs': s} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
+    test_table_s.update_item(
+        Key={"p": p}, AttributeUpdates={":attrs": {"Value": s, "Action": "PUT"}}
+    )
+    assert {"p": p, ":attrs": s} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+
 
 def test_special_attribute_name_updateitem_delete(test_table_s):
     p = random_string()
     s = random_string()
-    test_table_s.put_item(Item={'p': p, ':attrs': s, 'animal': 'dog'})
-    assert {'p': p, ':attrs': s, 'animal': 'dog'} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
-    test_table_s.update_item(Key={'p': p},
-        AttributeUpdates={':attrs': {'Action': 'DELETE'}})
-    assert {'p': p, 'animal': 'dog'} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
+    test_table_s.put_item(Item={"p": p, ":attrs": s, "animal": "dog"})
+    assert {"p": p, ":attrs": s, "animal": "dog"} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+    test_table_s.update_item(
+        Key={"p": p}, AttributeUpdates={":attrs": {"Action": "DELETE"}}
+    )
+    assert {"p": p, "animal": "dog"} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+
 
 def test_special_attribute_name_updateitem_rmw(test_table_s):
     p = random_string()
-    test_table_s.put_item(Item={'p': p, ':attrs': 7})
-    assert {'p': p, ':attrs': 7} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
-    test_table_s.update_item(Key={'p': p},
-        UpdateExpression='SET #a = #a + :one',
-        ExpressionAttributeValues={':one': 1},
-        ExpressionAttributeNames={'#a': ':attrs'})
-    assert {'p': p, ':attrs': 8} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
+    test_table_s.put_item(Item={"p": p, ":attrs": 7})
+    assert {"p": p, ":attrs": 7} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+    test_table_s.update_item(
+        Key={"p": p},
+        UpdateExpression="SET #a = #a + :one",
+        ExpressionAttributeValues={":one": 1},
+        ExpressionAttributeNames={"#a": ":attrs"},
+    )
+    assert {"p": p, ":attrs": 8} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+
 
 def test_special_attribute_name_updateitem_expected(test_table_s):
     p = random_string()
-    test_table_s.put_item(Item={'p': p, ':attrs': 7})
-    assert {'p': p, ':attrs': 7} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
-    test_table_s.update_item(Key={'p': p},
-        AttributeUpdates={'animal': {'Value': 'dog', 'Action': 'PUT'}},
-        Expected={':attrs': {'ComparisonOperator': 'EQ', 'AttributeValueList': [7]}})
-    assert {'p': p, ':attrs': 7, 'animal': 'dog'} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
+    test_table_s.put_item(Item={"p": p, ":attrs": 7})
+    assert {"p": p, ":attrs": 7} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+    test_table_s.update_item(
+        Key={"p": p},
+        AttributeUpdates={"animal": {"Value": "dog", "Action": "PUT"}},
+        Expected={":attrs": {"ComparisonOperator": "EQ", "AttributeValueList": [7]}},
+    )
+    assert {"p": p, ":attrs": 7, "animal": "dog"} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+
 
 def test_special_attribute_name_updateitem_condition(test_table_s):
     p = random_string()
-    test_table_s.put_item(Item={'p': p, ':attrs': 7})
-    assert {'p': p, ':attrs': 7} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
-    test_table_s.update_item(Key={'p': p},
-        UpdateExpression='SET #b = :val',
-        ExpressionAttributeValues={':val': 'dog', ':seven': 7},
-        ExpressionAttributeNames={'#a': ':attrs', '#b': 'animal'},
-        ConditionExpression='#a = :seven')
-    assert {'p': p, ':attrs': 7, 'animal': 'dog'} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
+    test_table_s.put_item(Item={"p": p, ":attrs": 7})
+    assert {"p": p, ":attrs": 7} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+    test_table_s.update_item(
+        Key={"p": p},
+        UpdateExpression="SET #b = :val",
+        ExpressionAttributeValues={":val": "dog", ":seven": 7},
+        ExpressionAttributeNames={"#a": ":attrs", "#b": "animal"},
+        ConditionExpression="#a = :seven",
+    )
+    assert {"p": p, ":attrs": 7, "animal": "dog"} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+
 
 def test_special_attribute_name_getitem_projection(test_table_s):
     p = random_string()
-    test_table_s.put_item(Item={'p': p, ':attrs': 7, 'animal': 'dog'})
-    assert {'p': p, ':attrs': 7, 'animal': 'dog'} == test_table_s.get_item(Key={'p': p}, ConsistentRead=True)['Item']
-    assert {':attrs': 7} == test_table_s.get_item(Key={'p': p},
-        ProjectionExpression='#a',
-        ExpressionAttributeNames={'#a': ':attrs'},
-        ConsistentRead=True)['Item']
+    test_table_s.put_item(Item={"p": p, ":attrs": 7, "animal": "dog"})
+    assert {"p": p, ":attrs": 7, "animal": "dog"} == test_table_s.get_item(
+        Key={"p": p}, ConsistentRead=True
+    )["Item"]
+    assert {":attrs": 7} == test_table_s.get_item(
+        Key={"p": p},
+        ProjectionExpression="#a",
+        ExpressionAttributeNames={"#a": ":attrs"},
+        ConsistentRead=True,
+    )["Item"]
 
 
 # Test that all tables we create are listed, and pagination works properly.
@@ -353,11 +411,13 @@ def test_list_tables_paginated(dynamodb, test_table, test_table_s, test_table_b)
         list_tables_set = set(list_tables(dynamodb, limit))
         assert my_tables_set.issubset(list_tables_set)
 
+
 # Test that pagination limit is validated
 def test_list_tables_wrong_limit(dynamodb):
     # lower limit (min. 1) is imposed by boto3 library checks
-    with pytest.raises(ClientError, match='ValidationException'):
+    with pytest.raises(ClientError, match="ValidationException"):
         dynamodb.meta.client.list_tables(Limit=101)
+
 
 # Even before Alternator gains support for configuring server-side encryption
 # ("encryption at rest") with CreateTable's SSESpecification option, we should
@@ -368,24 +428,30 @@ def test_table_sse_off(dynamodb):
     # If StreamSpecification is given, but has StreamEnabled=false, it's as
     # if StreamSpecification was missing, and fine. No other attribues are
     # necessary.
-    table = create_test_table(dynamodb, SSESpecification = {'Enabled': False},
-        KeySchema=[{ 'AttributeName': 'p', 'KeyType': 'HASH' }],
-        AttributeDefinitions=[{ 'AttributeName': 'p', 'AttributeType': 'S' }]);
-    table.delete();
+    table = create_test_table(
+        dynamodb,
+        SSESpecification={"Enabled": False},
+        KeySchema=[{"AttributeName": "p", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "p", "AttributeType": "S"}],
+    )
+    table.delete()
+
 
 # Test that trying to delete a table that doesn't exist fails in the
 # appropriate way (ResourceNotFoundException)
 def test_delete_table_non_existent(dynamodb, test_table):
     client = dynamodb.meta.client
-    with pytest.raises(ClientError, match='ResourceNotFoundException'):
+    with pytest.raises(ClientError, match="ResourceNotFoundException"):
         client.delete_table(TableName=random_string(20))
+
 
 # Test that trying to update a table that doesn't exist fails in the
 # appropriate way (ResourceNotFoundException)
 def test_update_table_non_existent(dynamodb, test_table):
     client = dynamodb.meta.client
-    with pytest.raises(ClientError, match='ResourceNotFoundException'):
-        client.update_table(TableName=random_string(20), BillingMode='PAY_PER_REQUEST')
+    with pytest.raises(ClientError, match="ResourceNotFoundException"):
+        client.update_table(TableName=random_string(20), BillingMode="PAY_PER_REQUEST")
+
 
 # Consistent schema change feature is optionally enabled and
 # some tests are expected to fail on Scylla without this
@@ -395,22 +461,32 @@ def test_update_table_non_existent(dynamodb, test_table):
 @pytest.fixture(scope="session")
 def check_pre_consistent_cluster_management(dynamodb):
     from util import is_aws
+
     # If not running on Scylla, return false.
     if is_aws(dynamodb):
         return false
     # In Scylla, we check Raft mode by inspecting the configuration via a
     # system table (which is also visible in Alternator)
-    config_table = dynamodb.Table('.scylla.alternator.system.config')
+    config_table = dynamodb.Table(".scylla.alternator.system.config")
     consistent = config_table.query(
-            KeyConditionExpression='#key=:val',
-            ExpressionAttributeNames={'#key': 'name'},
-            ExpressionAttributeValues={':val': 'consistent_cluster_management'}
-        )['Items']
-    return len(consistent) == 0 or consistent[0]['value'] == 'false'
+        KeyConditionExpression="#key=:val",
+        ExpressionAttributeNames={"#key": "name"},
+        ExpressionAttributeValues={":val": "consistent_cluster_management"},
+    )["Items"]
+    return len(consistent) == 0 or consistent[0]["value"] == "false"
+
+
 @pytest.fixture(scope="function")
-def fails_without_consistent_cluster_management(request, check_pre_consistent_cluster_management):
+def fails_without_consistent_cluster_management(
+    request, check_pre_consistent_cluster_management
+):
     if check_pre_consistent_cluster_management:
-        request.node.add_marker(pytest.mark.xfail(reason='Test expected to fail without consistent cluster management feature on'))
+        request.node.add_marker(
+            pytest.mark.xfail(
+                reason="Test expected to fail without consistent cluster management feature on"
+            )
+        )
+
 
 # Test for reproducing issues #6391 and #9868 - where CreateTable did not
 # *atomically* perform all the schema modifications - creating a keyspace,
@@ -435,41 +511,49 @@ def fails_without_consistent_cluster_management(request, check_pre_consistent_cl
 # But even on one coordinator this test can already reproduce the bugs
 # described in #6391 and #9868, so it's worth having this single-node test
 # as well.
-@pytest.mark.parametrize("table_def", [
-    # A table without a secondary index - requiring the creation of
-    # a keyspace and a table in it.
-    {   'KeySchema': [ { 'AttributeName': 'p', 'KeyType': 'HASH' } ],
-        'AttributeDefinitions': [
-            { 'AttributeName': 'p', 'AttributeType': 'S' }]
-    },
-    # Reproducer for #9868 - CreateTable needs to create a keyspace,
-    # a table, and a materialized view.
-    {   'KeySchema': [ { 'AttributeName': 'p', 'KeyType': 'HASH' },
-                    { 'AttributeName': 'c', 'KeyType': 'RANGE' }
-        ],
-        'AttributeDefinitions': [
-            { 'AttributeName': 'p', 'AttributeType': 'S' },
-            { 'AttributeName': 'c', 'AttributeType': 'S' },
-        ],
-        'GlobalSecondaryIndexes': [
-            {   'IndexName': 'hello',
-                'KeySchema': [
-                    { 'AttributeName': 'c', 'KeyType': 'HASH' },
-                    { 'AttributeName': 'p', 'KeyType': 'RANGE' },
-                ],
-                'Projection': { 'ProjectionType': 'ALL' }
-            }
-        ]
-    },
-    # Reproducer for #6391, a table with tags - which we used to add
-    # non-atomically after having already created the table.
-    {   'KeySchema': [ { 'AttributeName': 'p', 'KeyType': 'HASH' } ],
-        'AttributeDefinitions': [
-            { 'AttributeName': 'p', 'AttributeType': 'S' }],
-        'Tags': [{'Key': 'k1', 'Value': 'v1'}]
-    }
-])
-def test_concurrent_create_and_delete_table(dynamodb, table_def, fails_without_consistent_cluster_management):
+@pytest.mark.parametrize(
+    "table_def",
+    [
+        # A table without a secondary index - requiring the creation of
+        # a keyspace and a table in it.
+        {
+            "KeySchema": [{"AttributeName": "p", "KeyType": "HASH"}],
+            "AttributeDefinitions": [{"AttributeName": "p", "AttributeType": "S"}],
+        },
+        # Reproducer for #9868 - CreateTable needs to create a keyspace,
+        # a table, and a materialized view.
+        {
+            "KeySchema": [
+                {"AttributeName": "p", "KeyType": "HASH"},
+                {"AttributeName": "c", "KeyType": "RANGE"},
+            ],
+            "AttributeDefinitions": [
+                {"AttributeName": "p", "AttributeType": "S"},
+                {"AttributeName": "c", "AttributeType": "S"},
+            ],
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "hello",
+                    "KeySchema": [
+                        {"AttributeName": "c", "KeyType": "HASH"},
+                        {"AttributeName": "p", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
+        },
+        # Reproducer for #6391, a table with tags - which we used to add
+        # non-atomically after having already created the table.
+        {
+            "KeySchema": [{"AttributeName": "p", "KeyType": "HASH"}],
+            "AttributeDefinitions": [{"AttributeName": "p", "AttributeType": "S"}],
+            "Tags": [{"Key": "k1", "Value": "v1"}],
+        },
+    ],
+)
+def test_concurrent_create_and_delete_table(
+    dynamodb, table_def, fails_without_consistent_cluster_management
+):
     # According to boto3 documentation, "Unlike Resources and Sessions,
     # clients are generally thread-safe.". So because we have two threads
     # in this test, we must not use "dynamodb" (containing the boto3
@@ -485,9 +569,10 @@ def test_concurrent_create_and_delete_table(dynamodb, table_def, fails_without_c
                 self.ret = self._target(*self._args, **self._kwargs)
             except BaseException as e:
                 self.exception = e
+
         def join(self, timeout=None):
             super().join(timeout)
-            if hasattr(self, 'exception'):
+            if hasattr(self, "exception"):
                 raise self.exception
             return self.ret
 
@@ -497,6 +582,7 @@ def test_concurrent_create_and_delete_table(dynamodb, table_def, fails_without_c
     # Lower numbers have some chance of not catching the bug. If this
     # issue starts to xpass, we may need to increase the count.
     count = 10
+
     def deletes():
         for i in range(count):
             try:
@@ -508,22 +594,25 @@ def test_concurrent_create_and_delete_table(dynamodb, table_def, fails_without_c
                 # of being created.
                 # Anything else (e.g., InternalServerError) is a bug.
                 assert isinstance(e, ClientError) and (
-                    'ResourceNotFoundException' in str(e) or
-                    'ResourceInUseException' in str(e))
+                    "ResourceNotFoundException" in str(e)
+                    or "ResourceInUseException" in str(e)
+                )
             else:
                 print("delete successful")
+
     def creates():
         for i in range(count):
             try:
-                client.create_table(TableName=table_name,
-                    BillingMode='PAY_PER_REQUEST',
-                    **table_def)
+                client.create_table(
+                    TableName=table_name, BillingMode="PAY_PER_REQUEST", **table_def
+                )
             except Exception as e:
                 # Expect either success or a ResourceInUseException.
                 # Anything else (e.g., InternalServerError) is a bug.
-                assert isinstance(e, ClientError) and 'ResourceInUseException' in str(e)
+                assert isinstance(e, ClientError) and "ResourceInUseException" in str(e)
             else:
                 print("create successful")
+
     t1 = ThreadWrapper(target=deletes)
     t2 = ThreadWrapper(target=creates)
     t1.start()
@@ -542,11 +631,11 @@ def test_concurrent_create_and_delete_table(dynamodb, table_def, fails_without_c
                 client.delete_table(TableName=table_name)
                 break
             except ClientError as e:
-                if 'ResourceNotFoundException' in str(e):
+                if "ResourceNotFoundException" in str(e):
                     # The table was already deleted by the deletion thread,
                     # nothing left to do :-)
                     break
-                if 'ResourceInUseException' in str(e):
+                if "ResourceInUseException" in str(e):
                     # A CreateTable opereration is still in progress,
                     # we can't delete the table yet.
                     time.sleep(1)
