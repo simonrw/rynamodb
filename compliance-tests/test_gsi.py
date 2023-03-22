@@ -488,7 +488,7 @@ def test_gsi_wrong_type_attribute_put(test_table_gsi_2):
     p = random_string()
     with pytest.raises(ClientError, match="ValidationException.*mismatch"):
         test_table_gsi_2.put_item(Item={"p": p, "x": 3})
-    assert not "Item" in test_table_gsi_2.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_gsi_2.get_item(Key={"p": p}, ConsistentRead=True)
 
 
 def test_gsi_wrong_type_attribute_update(test_table_gsi_2):
@@ -557,9 +557,7 @@ def test_gsi_wrong_type_attribute_batch(test_table_gsi_2):
             for item in items:
                 batch.put_item(item)
     for p in [p1, p2, p3]:
-        assert not "Item" in test_table_gsi_2.get_item(
-            Key={"p": p}, ConsistentRead=True
-        )
+        assert "Item" not in test_table_gsi_2.get_item(Key={"p": p}, ConsistentRead=True)
 
 
 # A third scenario of GSI. Index has a hash key and a sort key, both are
@@ -1464,7 +1462,7 @@ def wait_for_gsi(table, gsi_name):
             print(f"{i} Index {gsi_name} status still {index_status}")
             continue
         # When the index is ACTIVE, this must be after backfilling completed
-        assert not "Backfilling" in index_desc[0]
+        assert "Backfilling" not in index_desc[0]
         print("wait_for_gsi took %d seconds" % (time.time() - start_time))
         return
     raise AssertionError("wait_for_gsi did not complete")
@@ -1740,7 +1738,7 @@ def test_gsi_list_tables(dynamodb, test_table_gsi_random_name):
     # Check that the random "index_name" isn't a substring of any table name:
     tables = list_tables(dynamodb)
     for name in tables:
-        assert not index_name in name
+        assert index_name not in name
     # But of course, the table's name should be in the list:
     assert table.name in tables
 
@@ -1891,12 +1889,7 @@ def test_gsi_query_select_1(test_table_gsi_1):
         AttributesToGet=["y"],
         KeyConditions={"c": {"AttributeValueList": [c], "ComparisonOperator": "EQ"}},
     )
-    assert not "Items" in test_table_gsi_1.query(
-        ConsistentRead=False,
-        IndexName="hello",
-        Select="COUNT",
-        KeyConditions={"c": {"AttributeValueList": [c], "ComparisonOperator": "EQ"}},
-    )
+    assert "Items" not in test_table_gsi_1.query(ConsistentRead=False, IndexName="hello", Select="COUNT", KeyConditions={"c": {"AttributeValueList": [c], "ComparisonOperator": "EQ"}})
 
 
 @pytest.mark.xfail(reason="Projection not supported yet. Issue #5036")
@@ -1980,11 +1973,4 @@ def test_gsi_query_select_2(dynamodb):
             },
         )
         # Select=COUNT is also allowed, and doesn't return item content
-        assert not "Items" in table.query(
-            ConsistentRead=False,
-            IndexName="hello",
-            Select="COUNT",
-            KeyConditions={
-                "x": {"AttributeValueList": [x], "ComparisonOperator": "EQ"}
-            },
-        )
+        assert "Items" not in table.query(ConsistentRead=False, IndexName="hello", Select="COUNT", KeyConditions={"x": {"AttributeValueList": [x], "ComparisonOperator": "EQ"}})

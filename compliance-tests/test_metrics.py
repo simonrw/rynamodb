@@ -81,7 +81,7 @@ def get_metric(metrics, name, requested_labels=None, the_metrics=None):
             got_labels = metric[len(name) + 1 : -1].split(",")
             # Check that every one of the requested labels is in got_labels:
             for k, v in requested_labels.items():
-                if not f'{k}="{v}"' in got_labels:
+                if f'{k}="{v}"' not in got_labels:
                     # No match for requested label, skip this metric (python
                     # doesn't have "continue 2" so let's just set val to 0...
                     val = 0
@@ -305,7 +305,7 @@ def alternator_ttl_period_in_seconds(dynamodb, request):
         ExpressionAttributeNames={"#key": "name"},
         ExpressionAttributeValues={":val": "alternator_ttl_period_in_seconds"},
     )
-    if not "Items" in resp:
+    if "Items" not in resp:
         pytest.skip("missing TTL feature, skipping test")
     period = float(resp["Items"][0]["value"])
     if period > 1 and not request.config.getoption("runveryslow"):
@@ -358,10 +358,10 @@ def test_ttl_stats(dynamodb, metrics, alternator_ttl_period_in_seconds):
             # extremely overloaded test machines.
             start_time = time.time()
             while time.time() < start_time + alternator_ttl_period_in_seconds + 120:
-                if not "Item" in table.get_item(Key={"p": p0}):
+                if "Item" not in table.get_item(Key={"p": p0}):
                     break
                 time.sleep(0.1)
-            assert not "Item" in table.get_item(Key={"p": p0})
+            assert "Item" not in table.get_item(Key={"p": p0})
 
 
 # TODO: there are additional metrics which we don't yet test here. At the

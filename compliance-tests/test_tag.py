@@ -10,9 +10,7 @@
 
 import pytest
 from botocore.exceptions import ClientError
-import re
-import time
-from util import multiset, create_test_table, unique_table_name, random_string
+from util import multiset, create_test_table, unique_table_name
 from packaging.version import Version
 
 

@@ -4,8 +4,6 @@
 
 # Tests for the UpdateItem operations with an UpdateExpression parameter
 
-import random
-import string
 import pytest
 from botocore.exceptions import ClientError
 from util import random_string
@@ -1863,7 +1861,7 @@ def test_update_expression_empty_attribute(test_table_s):
             UpdateExpression="SET a = :v",
             ExpressionAttributeValues={":v": set()},
         )
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     # But empty lists, maps, strings and binary blobs *are* allowed:
     test_table_s.update_item(
         Key={"p": p},

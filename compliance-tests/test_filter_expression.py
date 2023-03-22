@@ -116,7 +116,7 @@ def test_table_sn_with_data(test_table_sn):
 def test_filter_expression_partition_key_1(test_table_sn_with_data):
     table, p, items = test_table_sn_with_data
     with pytest.raises(ClientError, match="ValidationException.*Condition"):
-        got_items = full_query(
+        full_query(
             table, FilterExpression="p=:p", ExpressionAttributeValues={":p": p}
         )
 
@@ -124,7 +124,7 @@ def test_filter_expression_partition_key_1(test_table_sn_with_data):
 def test_filter_expression_partition_key_2(test_table_sn_with_data):
     table, p, items = test_table_sn_with_data
     with pytest.raises(ClientError, match="ValidationException.* p"):
-        got_items = full_query(
+        full_query(
             table,
             KeyConditionExpression="p=:p",
             FilterExpression="p=:p",
@@ -136,7 +136,7 @@ def test_filter_expression_partition_key_2(test_table_sn_with_data):
 def test_filter_expression_sort_key(test_table_sn_with_data):
     table, p, items = test_table_sn_with_data
     with pytest.raises(ClientError, match="ValidationException.* key "):
-        got_items = full_query(
+        full_query(
             table,
             KeyConditionExpression="p=:p",
             FilterExpression="c=:c",
@@ -244,7 +244,7 @@ def test_filter_expression_r_neq(test_table_sn_with_data):
         FilterExpression="r<>:r",
         ExpressionAttributeValues={":p": p, ":r": r},
     )
-    expected_items = [item for item in items if not "r" in item or item["r"] != r]
+    expected_items = [item for item in items if "r" not in item or item["r"] != r]
     assert got_items == expected_items
 
 
@@ -587,7 +587,7 @@ def test_filter_expression_map_contains(test_table_sn_with_data):
     assert got_items == expected_items
     # One value from a map:
     i = next(iter(items[2]["m"]))
-    v = items[2]["m"][i]
+    items[2]["m"][i]
     got_items = full_query(
         table,
         KeyConditionExpression="p=:p",
@@ -637,7 +637,7 @@ def test_filter_expression_r_not_exists(test_table_sn_with_data):
         FilterExpression="attribute_not_exists(r)",
         ExpressionAttributeValues={":p": p},
     )
-    expected_items = [item for item in items if not "r" in item]
+    expected_items = [item for item in items if "r" not in item]
     assert got_items == expected_items
 
 

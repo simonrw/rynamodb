@@ -29,7 +29,7 @@ def test_cors_not_used(dynamodb):
     for f in [requests.options, requests.get, requests.post]:
         response = f(url, verify=False)
         for h in cors_headers:
-            assert not h in response.headers
+            assert h not in response.headers
 
 
 # If the request has the "Origin" header, the reply must have the
@@ -48,7 +48,7 @@ def test_cors_allow_origin(dynamodb):
         if f == requests.options:
             assert "Access-Control-Max-Age" in response.headers
         else:
-            assert not "Access-Control-Max-Age" in response.headers
+            assert "Access-Control-Max-Age" not in response.headers
 
 
 # If this is a CORS request (has Origin header) pre-flight (i.e., OPTIONS
@@ -83,6 +83,6 @@ def test_cors_allow_requested(dynamodb):
                 == headers["Access-Control-Request-Headers"]
             )
         else:
-            assert not "Access-Control-Max-Age" in response.headers
-            assert not "Access-Control-Allow-Methods" in response.headers
-            assert not "Access-Control-Allow-Headers" in response.headers
+            assert "Access-Control-Max-Age" not in response.headers
+            assert "Access-Control-Allow-Methods" not in response.headers
+            assert "Access-Control-Allow-Headers" not in response.headers

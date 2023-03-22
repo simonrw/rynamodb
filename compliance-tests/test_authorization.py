@@ -5,7 +5,6 @@
 # Tests for authorization
 
 import pytest
-import botocore
 from botocore.exceptions import ClientError
 import boto3
 import requests

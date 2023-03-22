@@ -152,7 +152,7 @@ def test_basic_string_more_update(test_table):
     val1 = random_string()
     val2 = random_string()
     val3 = random_string()
-    val4 = random_string()
+    random_string()
     test_table.update_item(
         Key={"p": p, "c": c}, AttributeUpdates={"a3": {"Value": val1, "Action": "PUT"}}
     )
@@ -173,7 +173,7 @@ def test_basic_string_more_update(test_table):
     assert item["c"] == c
     assert item["a1"] == val3
     assert item["a2"] == val2
-    assert not "a3" in item
+    assert "a3" not in item
 
 
 # Test that item operations on a non-existent table name fail with correct
@@ -209,7 +209,7 @@ def test_item_operations_improper_named_table(dynamodb):
 def test_get_item_missing_item(test_table):
     p = random_string()
     c = random_string()
-    assert not "Item" in test_table.get_item(Key={"p": p, "c": c}, ConsistentRead=True)
+    assert "Item" not in test_table.get_item(Key={"p": p, "c": c}, ConsistentRead=True)
 
 
 # Test that if we have a table with string hash and sort keys, we can't read
@@ -280,7 +280,7 @@ def test_get_item_wrong_key_type(test_table, test_table_s):
     s = random_string()
     n = Decimal("3.14")
     # Should succeed (correct key types) but have empty result
-    assert not "Item" in test_table.get_item(Key={"p": s, "c": s}, ConsistentRead=True)
+    assert "Item" not in test_table.get_item(Key={"p": s, "c": s}, ConsistentRead=True)
     # Should fail (incorrect hash key types)
     with pytest.raises(ClientError, match="ValidationException"):
         test_table.get_item(Key={"p": b, "c": s})
@@ -435,7 +435,7 @@ def test_update_item_two_update_methods(test_table_s):
 # allowed, and results in creation of an empty item.
 def test_update_item_no_update_method(test_table_s):
     p = random_string()
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     test_table_s.update_item(Key={"p": p})
     assert test_table_s.get_item(Key={"p": p}, ConsistentRead=True)["Item"] == {"p": p}
 
@@ -490,7 +490,7 @@ def test_delete_item_hash(test_table_s):
     test_table_s.put_item(Item={"p": p})
     assert "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     test_table_s.delete_item(Key={"p": p})
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
 
 
 # Basic test for DeleteItem, with hash and sort key
@@ -501,7 +501,7 @@ def test_delete_item_sort(test_table):
     test_table.put_item(Item=key)
     assert "Item" in test_table.get_item(Key=key, ConsistentRead=True)
     test_table.delete_item(Key=key)
-    assert not "Item" in test_table.get_item(Key=key, ConsistentRead=True)
+    assert "Item" not in test_table.get_item(Key=key, ConsistentRead=True)
 
 
 # Test that PutItem completely replaces an existing item. It shouldn't merge
@@ -592,12 +592,12 @@ def test_update_item_non_existent(test_table_s):
     # creating and empty item in this case).
     p = random_string()
     test_table_s.update_item(Key={"p": p}, AttributeUpdates={"a": {"Action": "DELETE"}})
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     # Test the same thing - that an attribute-deleting update does not
     # create a non-existing item - but now with the update expression syntax:
     p = random_string()
     test_table_s.update_item(Key={"p": p}, UpdateExpression="REMOVE a")
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
 
 
 # UpdateItem's AttributeUpdate's DELETE operations has two different
@@ -701,13 +701,13 @@ def test_update_item_delete(test_table_s):
     # Asking to delete an attribute or parts of a set attribute is silently
     # ignored if the item doesn't exist (no error, and item isn't created).
     p = random_string()
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     test_table_s.update_item(Key={"p": p}, AttributeUpdates={"a": {"Action": "DELETE"}})
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     test_table_s.update_item(
         Key={"p": p}, AttributeUpdates={"a": {"Action": "DELETE", "Value": set([4])}}
     )
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
 
 
 # Test for UpdateItem's AttributeUpdate's ADD operation, which has different
@@ -895,7 +895,7 @@ def test_update_item_empty_attribute(test_table_s):
         test_table_s.update_item(
             Key={"p": p}, AttributeUpdates={"c": {"Action": "PUT", "Value": set([])}}
         )
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     # But empty lists, maps, strings and binary blobs *are* allowed:
     test_table_s.update_item(
         Key={"p": p}, AttributeUpdates={"d": {"Action": "PUT", "Value": []}}
@@ -950,7 +950,7 @@ def test_put_item_empty_attribute(test_table_s):
     # Empty sets are *not* allowed
     with pytest.raises(ClientError, match="ValidationException.*empty"):
         test_table_s.put_item(Item={"p": p, "a": set([])})
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     # But empty lists, maps, strings and binary blobs *are* allowed:
     test_table_s.put_item(
         Item={"p": p, "a": [], "b": {}, "c": "", "d": bytearray("", "utf-8")}

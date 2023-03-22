@@ -11,7 +11,6 @@ import urllib.request
 
 from botocore.exceptions import ClientError
 from util import (
-    list_tables,
     unique_table_name,
     create_test_table,
     random_string,
@@ -58,7 +57,7 @@ def disable_stream(dynamodbstreams, table):
 @contextmanager
 def create_stream_test_table(dynamodb, StreamViewType=None):
     spec = {"StreamEnabled": False}
-    if StreamViewType != None:
+    if StreamViewType is not None:
         spec = {"StreamEnabled": True, "StreamViewType": StreamViewType}
     table = create_test_table(
         dynamodb,
@@ -96,10 +95,10 @@ def wait_for_active_stream(dynamodbstreams, table, timeout=60):
         streams = dynamodbstreams.list_streams(TableName=table.name)
         for stream in streams["Streams"]:
             arn = stream["StreamArn"]
-            if arn == None:
+            if arn is None:
                 continue
             desc = dynamodbstreams.describe_stream(StreamArn=arn)["StreamDescription"]
-            if not "StreamStatus" in desc or desc.get("StreamStatus") == "ENABLED":
+            if "StreamStatus" not in desc or desc.get("StreamStatus") == "ENABLED":
                 return (arn, stream["StreamLabel"])
         # real dynamo takes some time until a stream is usable
         print("Stream not available. Sleep 5s...")
@@ -130,7 +129,7 @@ def ensure_java_server(dynamodbstreams, error="ValidationException"):
     # no good way to check, but local server has a "shell" builtin,
     # so check for that.
     if is_local_java(dynamodbstreams):
-        if error != None:
+        if error is not None:
             raise ClientError({"Error": {"Code": error}}, "")
         return
     assert False
@@ -145,7 +144,7 @@ def test_list_streams_create(dynamodb, dynamodbstreams):
 def test_list_streams_alter(dynamodb, dynamodbstreams):
     for type in stream_types:
         with create_stream_test_table(dynamodb, StreamViewType=None) as table:
-            res = table.update(
+            table.update(
                 StreamSpecification={"StreamEnabled": True, "StreamViewType": type}
             )
             wait_for_active_stream(dynamodbstreams, table)
@@ -317,7 +316,7 @@ def test_describe_nonexistent_stream(dynamodb, dynamodbstreams):
         if is_local_java(dynamodbstreams)
         else "ValidationException",
     ):
-        streams = dynamodbstreams.describe_stream(
+        dynamodbstreams.describe_stream(
             StreamArn="sdfadfsdfnlfkajakfgjalksfgklasjklasdjfklasdfasdfgasf"
         )
 
@@ -754,7 +753,7 @@ def compare_events(expected_events, output, mode):
         # key. We only lose a bit of testing power we didn't plan to test anyway
         # (that events for different items in the same partition are ordered).
         key = freeze(expected_key)
-        if not key in expected_events_map:
+        if key not in expected_events_map:
             expected_events_map[key] = []
         expected_events_map[key].append(event)
     # Iterate over the events in output. An event for a certain key needs to
@@ -801,12 +800,12 @@ def compare_events(expected_events, output, mode):
         # Alternator doesn't set the SizeBytes member. Issue #6931.
         # assert 'SizeBytes' in record
         if mode == "KEYS_ONLY":
-            assert not "NewImage" in record
-            assert not "OldImage" in record
+            assert "NewImage" not in record
+            assert "OldImage" not in record
         elif mode == "NEW_IMAGE":
-            assert not "OldImage" in record
-            if expected_new_image == None:
-                assert not "NewImage" in record
+            assert "OldImage" not in record
+            if expected_new_image is None:
+                assert "NewImage" not in record
             else:
                 new_image = {
                     x: deserializer.deserialize(y)
@@ -814,9 +813,9 @@ def compare_events(expected_events, output, mode):
                 }
                 assert expected_new_image == new_image
         elif mode == "OLD_IMAGE":
-            assert not "NewImage" in record
-            if expected_old_image == None:
-                assert not "OldImage" in record
+            assert "NewImage" not in record
+            if expected_old_image is None:
+                assert "OldImage" not in record
                 pass
             else:
                 old_image = {
@@ -825,16 +824,16 @@ def compare_events(expected_events, output, mode):
                 }
                 assert expected_old_image == old_image
         elif mode == "NEW_AND_OLD_IMAGES":
-            if expected_new_image == None:
-                assert not "NewImage" in record
+            if expected_new_image is None:
+                assert "NewImage" not in record
             else:
                 new_image = {
                     x: deserializer.deserialize(y)
                     for (x, y) in record["NewImage"].items()
                 }
                 assert expected_new_image == new_image
-            if expected_old_image == None:
-                assert not "OldImage" in record
+            if expected_old_image is None:
+                assert "OldImage" not in record
             else:
                 old_image = {
                     x: deserializer.deserialize(y)
@@ -1770,7 +1769,7 @@ def test_table_stream_with_result(dynamodb, dynamodbstreams):
 # doing an UpdateTable to a table - because before this wait finishes we are
 # not allowed to update the same table again or delete it.
 def wait_for_status_active(table):
-    start_time = time.time()
+    time.time()
     for i in range(60):
         desc = table.meta.client.describe_table(TableName=table.name)
         if desc["Table"]["TableStatus"] == "ACTIVE":
@@ -1899,7 +1898,7 @@ def test_streams_closed_read(test_table_ss_keys_only, dynamodbstreams):
                         ShardIterator=response["NextShardIterator"]
                     )
                     assert len(response["Records"]) == 0
-                    assert not "NextShardIterator" in response
+                    assert "NextShardIterator" not in response
                 # Until now we verified that we can read the closed shard
                 # using an old iterator. Let's test now that the closed
                 # shard id is also still valid, and a new iterator can be
@@ -2014,7 +2013,7 @@ def test_streams_disabled_stream(test_table_ss_keys_only, dynamodbstreams):
                 ShardIterator=response["NextShardIterator"]
             )
             assert len(response["Records"]) == 0
-            assert not "NextShardIterator" in response
+            assert "NextShardIterator" not in response
     assert nrecords == 1
 
 

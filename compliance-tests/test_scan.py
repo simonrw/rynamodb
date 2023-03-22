@@ -5,10 +5,8 @@
 # Tests for the Scan operation
 
 import pytest
-import time
 from botocore.exceptions import ClientError
 from util import (
-    random_string,
     random_bytes,
     full_scan,
     full_scan_and_count,

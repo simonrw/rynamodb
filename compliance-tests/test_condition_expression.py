@@ -147,7 +147,7 @@ def test_update_condition_eq_different(test_table_s):
             # Frustratingly, Python considers True == 1, so we have to use
             # this ugly expression instead of the trivial val1 == val2
             if (val1 is True and val2 is True) or (
-                not val1 is True and not val2 is True and val1 == val2
+                val1 is not True and val2 is not True and val1 == val2
             ):
                 # Condition should succeed
                 test_table_s.update_item(
@@ -2279,7 +2279,7 @@ def test_delete_item_condition(test_table_s):
         ConditionExpression="a = :oldval",
         ExpressionAttributeValues={":oldval": 1},
     )
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
 
 
 def test_put_item_condition(test_table_s):
@@ -2549,7 +2549,7 @@ def test_condition_expression_unsigned_bytes(test_table_s):
 # by using a "<>" (not equal) condition.
 def test_update_item_condition_key_ne(test_table_s):
     p = random_string()
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     # Create an empty item with key p, but only if no item with p exists yet.
     # Note how when the item does not exist, the <> (not equal) test succeeds
     # (we already tested that in test_update_condition_ne())
@@ -2573,7 +2573,7 @@ def test_update_item_condition_key_ne(test_table_s):
 # above.
 def test_update_item_condition_key_attribute_not_exists(test_table_s):
     p = random_string()
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     # Create an empty item with key p, but only an item with p exists yet.
     # Note how when the item does not exist, attribute_not_exists() succeeds
     test_table_s.update_item(

@@ -8,7 +8,6 @@
 
 import pytest
 from botocore.exceptions import ClientError
-import random
 from util import random_string, full_query, multiset
 
 # The test_table_{sn,ss,sb}_with_sorted_partition fixtures are the regular

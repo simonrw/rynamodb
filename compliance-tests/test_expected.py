@@ -314,7 +314,7 @@ def test_update_expected_1_le_validation(test_table_s):
             AttributeUpdates={"z": {"Value": 17, "Action": "PUT"}},
             Expected={"b": {"ComparisonOperator": "LE", "AttributeValueList": [3]}},
         )
-    assert not "z" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)["Item"]
+    assert "z" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)["Item"]
 
 
 # Tests for Expected with ComparisonOperator = "LT":
@@ -1314,7 +1314,7 @@ def test_update_expected_1_between_validation(test_table_s):
                 "b": {"ComparisonOperator": "BETWEEN", "AttributeValueList": [1, 2]}
             },
         )
-    assert not "z" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)["Item"]
+    assert "z" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)["Item"]
 
 
 ##############################################################################
@@ -1643,7 +1643,7 @@ def test_delete_item_expected(test_table_s):
         "a": 1,
     }
     test_table_s.delete_item(Key={"p": p}, Expected={"a": {"Value": 1}})
-    assert not "Item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
 
 
 def test_put_item_expected(test_table_s):

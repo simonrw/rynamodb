@@ -172,7 +172,7 @@ def test_limit_attribute_length_key_bad(dynamodb):
             AttributeDefinitions=[
                 {"AttributeName": too_long_name, "AttributeType": "S"}
             ],
-        ) as table:
+        ):
             pass
     with pytest.raises(ClientError, match="ValidationException.*length"):
         with new_test_table(
@@ -189,7 +189,7 @@ def test_limit_attribute_length_key_bad(dynamodb):
                 {"AttributeName": too_long_name, "AttributeType": "S"},
                 {"AttributeName": "x", "AttributeType": "S"},
             ],
-        ) as table:
+        ):
             pass
 
 
@@ -306,7 +306,7 @@ def test_limit_attribute_length_gsi_lsi_bad(dynamodb):
                     "Projection": {"ProjectionType": "ALL"},
                 }
             ],
-        ) as table:
+        ):
             pass
     with pytest.raises(ClientError, match="ValidationException.*length"):
         with new_test_table(
@@ -330,7 +330,7 @@ def test_limit_attribute_length_gsi_lsi_bad(dynamodb):
                     "Projection": {"ProjectionType": "ALL"},
                 }
             ],
-        ) as table:
+        ):
             pass
 
 
@@ -368,7 +368,7 @@ def test_limit_attribute_length_gsi_lsi_projection_bad(dynamodb):
                     },
                 }
             ],
-        ) as table:
+        ):
             pass
     with pytest.raises(ClientError, match="ValidationException.*length"):
         with new_test_table(
@@ -395,7 +395,7 @@ def test_limit_attribute_length_gsi_lsi_projection_bad(dynamodb):
                     },
                 }
             ],
-        ) as table:
+        ):
             pass
 
 

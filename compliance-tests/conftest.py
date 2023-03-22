@@ -13,7 +13,7 @@ import pytest
 import boto3
 import requests
 import re
-from util import create_test_table, is_aws, scylla_log
+from util import create_test_table, is_aws
 
 # When tests are run with HTTPS, the server often won't have its SSL
 # certificate signed by a known authority. So we will disable certificate
@@ -98,7 +98,7 @@ def dynamodb(request):
         # requires us to specify dummy region and credential parameters,
         # otherwise the user is forced to properly configure ~/.aws even
         # for local runs.
-        if request.config.getoption("url") != None:
+        if request.config.getoption("url") is not None:
             local_url = request.config.getoption("url")
         else:
             local_url = (
@@ -134,7 +134,7 @@ def dynamodbstreams(request):
         # requires us to specify dummy region and credential parameters,
         # otherwise the user is forced to properly configure ~/.aws even
         # for local runs.
-        if request.config.getoption("url") != None:
+        if request.config.getoption("url") is not None:
             local_url = request.config.getoption("url")
         else:
             local_url = (

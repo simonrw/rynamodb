@@ -18,7 +18,6 @@ import pytest
 import requests
 import time
 import json
-from botocore.exceptions import ClientError
 from util import random_string, full_scan, full_query, create_test_table
 
 # The "with_tracing" fixture ensures that tracing is enabled throughout
@@ -77,7 +76,7 @@ def with_slow_query_logging(rest_api):
     if response.status_code != 200:
         pytest.skip("Failed to verify slow query logging")
     response_json = json.loads(response.text)
-    if response_json["enable"] != True or response_json["threshold"] != 0:
+    if response_json["enable"] is not True or response_json["threshold"] != 0:
         pytest.skip("Failed to verify slow query logging values")
     print(response_json)
     yield
@@ -121,7 +120,7 @@ def find_tracing_session(dynamodb, str):
     global last_scan
     trace_sessions_table = dynamodb.Table(".scylla.alternator.system_traces.sessions")
     start = time.time()
-    if last_scan == None:
+    if last_scan is None:
         # The trace tables have RF=2, even on a one-node test setup, and
         # thus fail reads with ConsistentRead=True (Quorum)...
         last_scan = full_scan(trace_sessions_table, ConsistentRead=False)
@@ -170,7 +169,7 @@ def expect_tracing_events(dynamodb, str, expected_events):
     while time.time() - start < 100:
         events = get_tracing_events(dynamodb, session)
         for event in expected_events:
-            if not event in events:
+            if event not in events:
                 break
         else:
             # Success!

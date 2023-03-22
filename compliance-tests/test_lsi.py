@@ -18,7 +18,6 @@ from util import (
     full_scan,
     full_query,
     multiset,
-    list_tables,
 )
 
 # LSIs support strongly-consistent reads, so the following functions do not
@@ -386,8 +385,8 @@ def test_lsi_describe_fields(test_table_lsi_1):
     assert lsi["IndexName"] == "hello"
     assert "IndexSizeBytes" in lsi  # actual size depends on content
     assert "ItemCount" in lsi
-    assert not "IndexStatus" in lsi
-    assert not "ProvisionedThroughput" in lsi
+    assert "IndexStatus" not in lsi
+    assert "ProvisionedThroughput" not in lsi
     assert lsi["KeySchema"] == [
         {"KeyType": "HASH", "AttributeName": "p"},
         {"KeyType": "RANGE", "AttributeName": "b"},
@@ -622,15 +621,7 @@ def test_lsi_query_select(dynamodb):
             },
         )
         # Select=COUNT is also allowed, and as expected returns no content.
-        assert not "Items" in table.query(
-            ConsistentRead=False,
-            IndexName="hello",
-            Select="COUNT",
-            KeyConditions={
-                "p": {"AttributeValueList": [p], "ComparisonOperator": "EQ"},
-                "b": {"AttributeValueList": [b], "ComparisonOperator": "EQ"},
-            },
-        )
+        assert "Items" not in table.query(ConsistentRead=False, IndexName="hello", Select="COUNT", KeyConditions={"p": {"AttributeValueList": [p], "ComparisonOperator": "EQ"}, "b": {"AttributeValueList": [b], "ComparisonOperator": "EQ"}})
 
 
 # Check that strongly consistent reads are allowed for LSI

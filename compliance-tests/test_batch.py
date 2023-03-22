@@ -9,7 +9,7 @@
 import pytest
 import random
 from botocore.exceptions import ClientError
-from util import random_string, full_scan, full_query, multiset, scylla_inject_error
+from util import random_string, full_query, multiset, scylla_inject_error
 
 # Test ensuring that items inserted by a batched statement can be properly extracted
 # via GetItem. Schema has both hash and sort keys.
@@ -87,9 +87,7 @@ def test_batch_write_delete(test_table_s):
             batch.delete_item(Key={"p": item["p"]})
     # Verify that all items are now missing:
     for item in items:
-        assert not "Item" in test_table_s.get_item(
-            Key={"p": item["p"]}, ConsistentRead=True
-        )
+        assert "Item" not in test_table_s.get_item(Key={"p": item["p"]}, ConsistentRead=True)
 
 
 # Test the same batch including both writes and delete. Should be fine.
@@ -98,11 +96,11 @@ def test_batch_write_and_delete(test_table_s):
     p2 = random_string()
     test_table_s.put_item(Item={"p": p1})
     assert "Item" in test_table_s.get_item(Key={"p": p1}, ConsistentRead=True)
-    assert not "Item" in test_table_s.get_item(Key={"p": p2}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p2}, ConsistentRead=True)
     with test_table_s.batch_writer() as batch:
         batch.put_item({"p": p2})
         batch.delete_item(Key={"p": p1})
-    assert not "Item" in test_table_s.get_item(Key={"p": p1}, ConsistentRead=True)
+    assert "Item" not in test_table_s.get_item(Key={"p": p1}, ConsistentRead=True)
     assert "Item" in test_table_s.get_item(Key={"p": p2}, ConsistentRead=True)
 
 
@@ -172,7 +170,7 @@ def test_batch_write_nonduplicate_multiple_tables(test_table_s, test_table_s_2):
     p = random_string()
     # The batch_writer() function used in previous tests can't write to more
     # than one table. So we use the lower level interface boto3 gives us.
-    reply = test_table_s.meta.client.batch_write_item(
+    test_table_s.meta.client.batch_write_item(
         RequestItems={
             test_table_s.name: [{"PutRequest": {"Item": {"p": p, "a": "hi"}}}],
             test_table_s_2.name: [{"PutRequest": {"Item": {"p": p, "b": "hello"}}}],
@@ -235,7 +233,7 @@ def test_batch_write_invalid_operation(test_table_s):
             for item in items:
                 batch.put_item(item)
     for p in [p1, p2]:
-        assert not "item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+        assert "item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
     # test missing key attribute:
     p1 = random_string()
     p2 = random_string()
@@ -245,7 +243,7 @@ def test_batch_write_invalid_operation(test_table_s):
             for item in items:
                 batch.put_item(item)
     for p in [p1, p2]:
-        assert not "item" in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
+        assert "item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True)
 
 
 # In test_item.py we have a bunch of test_empty_* tests on different ways to
@@ -271,7 +269,7 @@ def test_batch_write_multiple_tables(test_table_s, test_table):
     # We use the low-level batch_write_item API for lack of a more convenient
     # API (the batch_writer() API can only write to one table). At least it
     # spares us the need to encode the key's types...
-    reply = test_table.meta.client.batch_write_item(
+    test_table.meta.client.batch_write_item(
         RequestItems={
             test_table.name: [{"PutRequest": {"Item": {"p": p1, "c": c1, "a": "hi"}}}],
             test_table_s.name: [{"PutRequest": {"Item": {"p": p2, "b": "hello"}}}],
@@ -641,7 +639,6 @@ def test_batch_get_item_full_failure(scylla_only, dynamodb, rest_api, test_table
     with test_table_sn.batch_writer() as batch:
         for i in range(count):
             batch.put_item(Item={"p": p, "c": i, "content": content})
-    responses = []
     to_read = {
         test_table_sn.name: {
             "Keys": [{"p": p, "c": c} for c in range(count)],
@@ -651,4 +648,4 @@ def test_batch_get_item_full_failure(scylla_only, dynamodb, rest_api, test_table
     # The error injection is permanent, so it will fire for each batch read.
     with scylla_inject_error(rest_api, "alternator_batch_get_item", one_shot=False):
         with pytest.raises(ClientError, match="InternalServerError"):
-            reply = test_table_sn.meta.client.batch_get_item(RequestItems=to_read)
+            test_table_sn.meta.client.batch_get_item(RequestItems=to_read)

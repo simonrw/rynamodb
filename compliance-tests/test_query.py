@@ -15,7 +15,7 @@ import pytest
 from botocore.exceptions import ClientError
 from decimal import Decimal
 from util import random_string, random_bytes, full_query, multiset
-from boto3.dynamodb.conditions import Key, Attr
+from boto3.dynamodb.conditions import Attr
 
 
 def test_query_nonexistent_table(dynamodb):
@@ -388,7 +388,7 @@ def test_query_select(test_table_sn):
         Select="COUNT",
     )
     assert got["Count"] == len(numbers)
-    assert not "Items" in got
+    assert "Items" not in got
     # Check again that we also get a count - not just with Select=COUNT,
     # but without Select=COUNT we also get the items:
     got = test_table_sn.query(
@@ -556,7 +556,6 @@ def test_query_exclusivestartkey(test_table_sn):
         # The ExclusiveStartKey option must indicate both partition key and
         # sort key. Note that the Python driver further converts this map
         # into the correct format for the request (including the key types).
-        exclusivestartkey = {"p": p, "c": start}
         got_items = test_table_sn.query(
             KeyConditions={
                 "p": {"AttributeValueList": [p], "ComparisonOperator": "EQ"}

@@ -22,7 +22,7 @@ def test_fetch_from_system_tables(scylla_only, dynamodb):
         ks_name = item["keyspace_name"]
         table_name = item["table_name"]
 
-        if not "system" in ks_name:
+        if "system" not in ks_name:
             continue
 
         col_response = client.query(
@@ -53,7 +53,7 @@ def test_block_access_to_non_system_tables_with_virtual_interface(
     with pytest.raises(
         ClientError, match="ResourceNotFoundException.*{}".format(internal_prefix)
     ):
-        tables_response = client.scan(
+        client.scan(
             TableName="{}alternator_{}.{}".format(
                 internal_prefix, test_table_s.name, test_table_s.name
             )
@@ -61,7 +61,6 @@ def test_block_access_to_non_system_tables_with_virtual_interface(
 
 
 def test_block_creating_tables_with_reserved_prefix(scylla_only, dynamodb):
-    client = dynamodb.meta.client
     for wrong_name_postfix in ["", "a", "xxx", "system_auth.roles", "table_name"]:
         with pytest.raises(ClientError, match=internal_prefix):
             dynamodb.create_table(

@@ -122,7 +122,7 @@ def test_describe_table_provisioned_throughput(test_table):
 # value of this attribute in that case.
 def test_describe_table_restore_summary(test_table):
     got = test_table.meta.client.describe_table(TableName=test_table.name)["Table"]
-    assert not "RestoreSummary" in got
+    assert "RestoreSummary" not in got
 
 
 # This is a silly test for the SSEDescription attribute in DescribeTable -
@@ -130,14 +130,14 @@ def test_describe_table_restore_summary(test_table):
 # owned keys, and the SSEDescription attribute is not returned at all.
 def test_describe_table_encryption(test_table):
     got = test_table.meta.client.describe_table(TableName=test_table.name)["Table"]
-    assert not "SSEDescription" in got
+    assert "SSEDescription" not in got
 
 
 # This is a silly test for the StreamSpecification attribute in DescribeTable -
 # when there are no streams, this attribute should be missing.
 def test_describe_table_stream_specification(test_table):
     got = test_table.meta.client.describe_table(TableName=test_table.name)["Table"]
-    assert not "StreamSpecification" in got
+    assert "StreamSpecification" not in got
 
 
 # Test that the table has an ARN, a unique identifier for the table which

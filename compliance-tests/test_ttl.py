@@ -36,7 +36,7 @@ def passes_or_raises(expected_exception, match=None):
         # the "or not" case.
         return
     except expected_exception as err:
-        if match == None or re.search(match, str(err)):
+        if match is None or re.search(match, str(err)):
             # The raises_or_not() passed on as the "raises" case
             return
         pytest.fail(f"exception message '{err}' did not match '{match}'")
@@ -89,7 +89,7 @@ def test_describe_ttl_without_ttl(test_table):
     assert "TimeToLiveDescription" in response
     assert "TimeToLiveStatus" in response["TimeToLiveDescription"]
     assert response["TimeToLiveDescription"]["TimeToLiveStatus"] == "DISABLED"
-    assert not "AttributeName" in response["TimeToLiveDescription"]
+    assert "AttributeName" not in response["TimeToLiveDescription"]
 
 
 # Test that UpdateTimeToLive can be used to pick an expiration-time attribute
@@ -379,16 +379,16 @@ def test_ttl_expiration(dynamodb):
         def check_expired():
             # After the delay, p1,p3,p5,p6,p7 should be alive, p0,p2,p4 should not
             return (
-                not "Item" in table.get_item(Key={"p": p0})
+                "Item" not in table.get_item(Key={"p": p0})
                 and "Item" in table.get_item(Key={"p": p1})
-                and not "Item" in table.get_item(Key={"p": p2})
+                and "Item" not in table.get_item(Key={"p": p2})
                 and "Item" in table.get_item(Key={"p": p3})
-                and not "Item" in table.get_item(Key={"p": p4})
+                and "Item" not in table.get_item(Key={"p": p4})
                 and "Item" in table.get_item(Key={"p": p5})
                 and "Item" in table.get_item(Key={"p": p6})
                 and "Item" in table.get_item(Key={"p": p7})
-                and not "Item" in table.get_item(Key={"p": p8})
-                and not "Item" in table.get_item(Key={"p": p9})
+                and "Item" not in table.get_item(Key={"p": p8})
+                and "Item" not in table.get_item(Key={"p": p9})
             )
 
         # We could have just done time.sleep(duration) here, but in case a
@@ -474,14 +474,12 @@ def test_ttl_expiration_with_rangekey(dynamodb, waits_for_expiration):
         table.put_item(Item={"p": p2, "c": c2, "expiration": int(time.time()) - 60})
         start_time = time.time()
         while time.time() < start_time + max_duration:
-            if ("Item" in table.get_item(Key={"p": p1, "c": c1})) and not (
-                "Item" in table.get_item(Key={"p": p2, "c": c2})
-            ):
+            if ("Item" in table.get_item(Key={"p": p1, "c": c1})) and "Item" not in table.get_item(Key={"p": p2, "c": c2}):
                 # p2 expired, p1 didn't. We're done
                 break
             time.sleep(sleep)
         assert "Item" in table.get_item(Key={"p": p1, "c": c1})
-        assert not "Item" in table.get_item(Key={"p": p2, "c": c2})
+        assert "Item" not in table.get_item(Key={"p": p2, "c": c2})
 
 
 # While it probably makes little sense to do this, the designated
@@ -512,9 +510,7 @@ def test_ttl_expiration_hash(dynamodb, waits_for_expiration):
         start_time = time.time()
 
         def check_expired():
-            return not "Item" in table.get_item(
-                Key={"p": p1}
-            ) and "Item" in table.get_item(Key={"p": p2})
+            return "Item" not in table.get_item(Key={"p": p1}) and "Item" in table.get_item(Key={"p": p2})
 
         while time.time() < start_time + max_duration:
             print(f"--- {int(time.time()-start_time)} seconds")
@@ -557,9 +553,7 @@ def test_ttl_expiration_range(dynamodb, waits_for_expiration):
         start_time = time.time()
 
         def check_expired():
-            return not "Item" in table.get_item(
-                Key={"p": p, "c": c1}
-            ) and "Item" in table.get_item(Key={"p": p, "c": c2})
+            return "Item" not in table.get_item(Key={"p": p, "c": c1}) and "Item" in table.get_item(Key={"p": p, "c": c2})
 
         while time.time() < start_time + max_duration:
             print(f"--- {int(time.time()-start_time)} seconds")
@@ -723,7 +717,7 @@ def test_ttl_expiration_lsi_key(dynamodb, waits_for_expiration):
     # In my experiments, a 30-minute (1800 seconds) is the typical delay
     # for expiration in this test for DynamoDB
     max_duration = 3600 if is_aws(dynamodb) else 240
-    sleep = 30 if is_aws(dynamodb) else 0.1
+    30 if is_aws(dynamodb) else 0.1
     with new_test_table(
         dynamodb,
         KeySchema=[
@@ -755,12 +749,11 @@ def test_ttl_expiration_lsi_key(dynamodb, waits_for_expiration):
         assert response["TimeToLiveSpecification"] == ttl_spec
         p = random_string()
         c = random_string()
-        l = random_string()
+        random_string()
         # expiration one minute in the past, so item should expire ASAP.
         expiration = int(time.time()) - 60
         table.put_item(Item={"p": p, "c": c, "l": expiration})
         start_time = time.time()
-        gsi_was_alive = False
         while time.time() < start_time + max_duration:
             print(f"--- {int(time.time()-start_time)} seconds")
             if "Item" in table.get_item(Key={"p": p, "c": c}):
@@ -834,7 +827,7 @@ def test_ttl_expiration_streams(dynamodb, dynamodbstreams):
         event_found = False
         while time.time() < start_time + max_duration:
             print(f"--- {int(time.time()-start_time)} seconds")
-            item_expired = not "Item" in table.get_item(Key={"p": p, "c": c})
+            item_expired = "Item" not in table.get_item(Key={"p": p, "c": c})
             for record in read_entire_stream(dynamodbstreams, table):
                 # An expired item has a specific userIdentity as follows:
                 if record.get("userIdentity") == {
@@ -867,7 +860,7 @@ def test_ttl_expiration_streams(dynamodb, dynamodbstreams):
 def read_entire_stream(dynamodbstreams, table):
     # Look for the latest stream. If there is none, return nothing
     desc = table.meta.client.describe_table(TableName=table.name)["Table"]
-    if not "LatestStreamArn" in desc:
+    if "LatestStreamArn" not in desc:
         return []
     arn = desc["LatestStreamArn"]
     # List all shards of the stream in an array "shards":
@@ -884,7 +877,7 @@ def read_entire_stream(dynamodbstreams, table):
         iter = dynamodbstreams.get_shard_iterator(
             StreamArn=arn, ShardId=shard_id, ShardIteratorType="TRIM_HORIZON"
         )["ShardIterator"]
-        while iter != None:
+        while iter is not None:
             response = dynamodbstreams.get_records(ShardIterator=iter)
             # DynamoDB will continue returning records until reaching the
             # current end, and only then we will get an empty response.

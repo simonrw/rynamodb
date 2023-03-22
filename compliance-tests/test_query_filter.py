@@ -226,7 +226,7 @@ def test_query_filter_r_ne(test_table_sn_with_data):
         KeyConditions={"p": {"AttributeValueList": [p], "ComparisonOperator": "EQ"}},
         QueryFilter={"r": {"AttributeValueList": [r], "ComparisonOperator": "NE"}},
     )
-    expected_items = [item for item in items if not "r" in item or item["r"] != r]
+    expected_items = [item for item in items if "r" not in item or item["r"] != r]
     assert got_items == expected_items
 
 
@@ -536,7 +536,7 @@ def test_query_filter_contains_member(test_table_sn_with_data):
             if op == "CONTAINS":
                 expected_items = [item for item in items if xv in item[xn]]
             else:
-                expected_items = [item for item in items if not xv in item[xn]]
+                expected_items = [item for item in items if xv not in item[xn]]
             assert got_items == expected_items
 
 
@@ -558,7 +558,7 @@ def test_query_filter_contains_substring(test_table_sn_with_data):
             if op == "CONTAINS":
                 expected_items = [item for item in items if substring in item[xn]]
             else:
-                expected_items = [item for item in items if not substring in item[xn]]
+                expected_items = [item for item in items if substring not in item[xn]]
             assert got_items == expected_items
 
 
@@ -578,7 +578,7 @@ def test_query_filter_null(test_table_sn_with_data):
             QueryFilter={"r": {"AttributeValueList": [], "ComparisonOperator": op}},
         )
         if op == "NULL":
-            expected_items = [item for item in items if not "r" in item]
+            expected_items = [item for item in items if "r" not in item]
         else:
             expected_items = [item for item in items if "r" in item]
         assert got_items == expected_items
@@ -727,7 +727,7 @@ def test_query_filter_counts(test_table_sn_with_data):
             "bool": {"AttributeValueList": [True], "ComparisonOperator": "EQ"}
         },
     )
-    expected_items = [item for item in items if item["bool"] == True]
+    expected_items = [item for item in items if item["bool"] is True]
     assert got_items == expected_items
     assert prefilter_count == len(items)
     assert postfilter_count == len(expected_items)
@@ -753,7 +753,7 @@ def test_query_filter_paging(test_table_sn_with_data):
         },
         Limit=1,
     )
-    expected_items = [item for item in items if item["bool"] == True]
+    expected_items = [item for item in items if item["bool"] is True]
     assert got_items == expected_items
     # The total number of pages may be len(items) or len(items)+1, depending
     # on the implementation: The "+1" can happen if the 20th page found one

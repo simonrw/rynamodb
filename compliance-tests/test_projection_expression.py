@@ -277,15 +277,9 @@ def test_projection_expression_path(test_table_s):
     # existing item yields an empty Item object. However, if the item does not
     # exist at all, the Item object will be missing entirely:
     p = random_string()
-    assert not "Item" in test_table_s.get_item(
-        Key={"p": p}, ConsistentRead=True, ProjectionExpression="x"
-    )
-    assert not "Item" in test_table_s.get_item(
-        Key={"p": p}, ConsistentRead=True, ProjectionExpression="a.x"
-    )
-    assert not "Item" in test_table_s.get_item(
-        Key={"p": p}, ConsistentRead=True, ProjectionExpression="a[0]"
-    )
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True, ProjectionExpression="x")
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True, ProjectionExpression="a.x")
+    assert "Item" not in test_table_s.get_item(Key={"p": p}, ConsistentRead=True, ProjectionExpression="a[0]")
 
 
 # Above in test_projection_expression_toplevel_syntax() we tested how
