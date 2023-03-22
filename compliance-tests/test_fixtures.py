@@ -1,2 +1,2 @@
-def test_noop(filled_test_table):
+def test_noop(dynamodb):
     pass

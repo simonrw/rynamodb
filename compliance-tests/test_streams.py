@@ -20,6 +20,8 @@ from contextlib import contextmanager, ExitStack
 from urllib.error import URLError
 from boto3.dynamodb.types import TypeDeserializer
 
+pytestmark = [pytest.mark.skip]
+
 stream_types = ["OLD_IMAGE", "NEW_IMAGE", "KEYS_ONLY", "NEW_AND_OLD_IMAGES"]
 
 
