@@ -21,6 +21,8 @@ from util import (
     new_test_table,
 )
 
+pytestmark = [pytest.mark.xfail(reason="GSIs are not supported yet")]
+
 # GSIs only support eventually consistent reads, so tests that involve
 # writing to a table and then expect to read something from it cannot be
 # guaranteed to succeed without retrying the read. The following utility

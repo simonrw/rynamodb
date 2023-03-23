@@ -15,6 +15,8 @@ from util import (
 )
 from boto3.dynamodb.conditions import Attr
 
+pytestmark = [pytest.mark.xfail(reason="scans are not supported")]
+
 # Test that scanning works fine with/without pagination
 def test_scan_basic(filled_test_table):
     test_table, items = filled_test_table

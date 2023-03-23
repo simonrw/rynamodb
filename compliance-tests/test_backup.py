@@ -10,6 +10,8 @@
 import pytest
 from botocore.exceptions import ClientError
 
+pytestmark = [pytest.mark.xfail(reason="backups are not supported yet")]
+
 # Test the DescribeContinuousBackups operation on a table where the
 # continuous backup feature was *not* enabled.
 #

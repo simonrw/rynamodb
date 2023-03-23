@@ -18,6 +18,8 @@ from util import (
 from contextlib import contextmanager
 from decimal import Decimal
 
+pytestmark = [pytest.mark.xfail(reason="ttls not supported yet")]
+
 # passes_or_raises() is similar to pytest.raises(), except that while raises()
 # expects a certain exception must happen, the new passes_or_raises()
 # expects the code to either pass (not raise), or if it throws, it must

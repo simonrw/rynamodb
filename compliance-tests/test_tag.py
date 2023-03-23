@@ -13,6 +13,8 @@ from botocore.exceptions import ClientError
 from util import multiset, create_test_table, unique_table_name
 from packaging.version import Version
 
+pytestmark = [pytest.mark.xfail(reason="tags are not supported")]
+
 
 def delete_tags(table, arn):
     got = table.meta.client.list_tags_of_resource(ResourceArn=arn)

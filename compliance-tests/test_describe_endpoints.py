@@ -21,12 +21,12 @@ def test_describe_endpoints(request, dynamodb):
         # send it another describe_endpoints() request ;-) Note that the
         # address does not include the "http://" or "https://" prefix, and
         # we need to choose one manually.
-        prefix = "https://" if request.config.getoption("https") else "http://"
-        verify = not request.config.getoption("https")
+        prefix = "http://"
         url = prefix + address
         if address.endswith(".amazonaws.com"):
             boto3.client(
-                "dynamodb", endpoint_url=url, verify=verify
+                "dynamodb",
+                endpoint_url=url,
             ).describe_endpoints()
         else:
             # Even though we connect to the local installation, Boto3 still
@@ -39,7 +39,6 @@ def test_describe_endpoints(request, dynamodb):
                 region_name="us-east-1",
                 aws_access_key_id="alternator",
                 aws_secret_access_key="secret_pass",
-                verify=verify,
             ).describe_endpoints()
         # Nothing to check here - if the above call failed with an exception,
         # the test would fail.

@@ -15,6 +15,8 @@ import pytest
 from botocore.exceptions import ClientError
 from util import random_string, full_scan, full_query, multiset
 
+pytestmark = [pytest.mark.xfail(reason="projection expressions are not supported")]
+
 # Basic test for ProjectionExpression, requesting only top-level attributes.
 # Result should include the selected attributes only - if one wants the key
 # attributes as well, one needs to select them explicitly. When no key

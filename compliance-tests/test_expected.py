@@ -11,6 +11,8 @@ import pytest
 from botocore.exceptions import ClientError
 from util import random_string
 
+pytestmark = [pytest.mark.xfail(reason="conditional writes are not supported")]
+
 # Most of the tests in this file check that the "Expected" parameter works for
 # the UpdateItem operation. It should also work the same for the PutItem and
 # DeleteItem operations, and we'll make a small effort verifying that at

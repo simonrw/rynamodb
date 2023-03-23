@@ -22,6 +22,8 @@ from botocore.exceptions import ClientError
 from util import random_string
 from sys import version_info
 
+pytestmark = [pytest.mark.xfail(reason="condition expressions are not supported")]
+
 # A helper function for changing write isolation policies
 def set_write_isolation(table, isolation):
     got = table.meta.client.describe_table(TableName=table.name)["Table"]

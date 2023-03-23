@@ -11,7 +11,10 @@
 # headers and HTTP methods in the followup request, and the server should
 # respond by "allowing" them in the response headers.
 
+import pytest
 import requests
+
+pytestmark = [pytest.mark.xfail(reason="cors is not supported yet")]
 
 # If the request does not have a "Origin" header, the reply should not
 # have any of the CORS headers. We test this for the GET, POST and

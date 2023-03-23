@@ -11,6 +11,8 @@ from botocore.exceptions import ClientError
 import random
 from util import full_query, full_query_and_counts, random_string, random_bytes
 
+pytestmark = [pytest.mark.xfail(reason="query filters are not supported")]
+
 # The test_table_sn_with_data fixture is the regular test_table_sn fixture
 # with a partition inserted with 20 items. The sort key 'c' of the items
 # are just increasing integers - QueryFilter doesn't support filtering

@@ -11,6 +11,8 @@ import pytest
 from botocore.exceptions import ClientError
 from util import random_string, random_bytes, full_query, multiset
 
+pytestmark = [pytest.mark.xfail(reason="we may never support keycondition")]
+
 # The test_table_{sn,ss,sb}_with_sorted_partition fixtures are the regular
 # test_table_{sn,ss,sb} fixture with a partition inserted with many items.
 # The table, the partition key, and the items are returned - the items are

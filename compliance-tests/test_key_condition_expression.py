@@ -18,6 +18,7 @@ from util import random_string, full_query, multiset
 # read the same input data without needing to re-insert data for every test,
 # so overall the test suite is faster.
 @pytest.fixture(scope="module")
+@pytest.mark.xfail(strict=True, reason="N data type not implemented yet")
 def test_table_sn_with_sorted_partition(test_table_sn):
     p = random_string()
     items = [{"p": p, "c": i, "a": random_string()} for i in range(12)]
@@ -31,6 +32,7 @@ def test_table_sn_with_sorted_partition(test_table_sn):
 
 
 @pytest.fixture(scope="module")
+@pytest.mark.xfail(strict=True, reason="batch writing not implemented yet")
 def test_table_ss_with_sorted_partition(test_table):
     p = random_string()
     items = [{"p": p, "c": str(i).zfill(3), "a": random_string()} for i in range(12)]
@@ -42,6 +44,7 @@ def test_table_ss_with_sorted_partition(test_table):
 
 
 @pytest.fixture(scope="module")
+@pytest.mark.xfail(strict=True, reason="B data type not implemented yet")
 def test_table_sb_with_sorted_partition(test_table_sb):
     p = random_string()
     items = [

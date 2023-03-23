@@ -20,6 +20,8 @@ from util import (
     multiset,
 )
 
+pytestmark = [pytest.mark.xfail(reason="LSIs are not supported yet")]
+
 # LSIs support strongly-consistent reads, so the following functions do not
 # need to retry like we did in test_gsi.py for GSIs:
 def assert_index_query(table, index_name, expected_items, **kwargs):

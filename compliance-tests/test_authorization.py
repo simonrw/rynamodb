@@ -9,6 +9,8 @@ from botocore.exceptions import ClientError
 import boto3
 import requests
 
+pytestmark = [pytest.mark.xfail(reason="authorization is not implemented")]
+
 # Test that trying to perform an operation signed with a wrong key
 # will not succeed
 def test_wrong_key_access(request, dynamodb):

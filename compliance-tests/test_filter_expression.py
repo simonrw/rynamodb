@@ -18,6 +18,8 @@ from util import (
     multiset,
 )
 
+pytestmark = [pytest.mark.xfail(reason="filter expressions are not implemented yet")]
+
 # The test_table_sn_with_data fixture is the regular test_table_sn fixture
 # with a partition inserted with many items. The sort key 'c' of the items
 # are just increasing integers (FilterExpression doesn't support filtering

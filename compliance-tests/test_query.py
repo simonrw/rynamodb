@@ -659,7 +659,6 @@ def test_query_reverse_paging(test_table_sn):
 # This is a relatively slow test (its setup of a 100 MB partition takes
 # several seconds), so we mark it with "veryslow" - so it's not run unless
 # the "--runveryslow" option is passed to pytest.
-@pytest.mark.veryslow
 def test_query_reverse_long(test_table_sn):
     # Insert many big strings into one partition sized over 100MB:
     p = random_string()

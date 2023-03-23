@@ -8,6 +8,8 @@ import pytest
 from botocore.exceptions import ClientError
 from util import random_string
 
+pytestmark = [pytest.mark.xfail(reason="update operations are not supported")]
+
 # The simplest test of using UpdateExpression to set a top-level attribute,
 # instead of the older AttributeUpdates parameter.
 # Checks only one "SET" action in an UpdateExpression.

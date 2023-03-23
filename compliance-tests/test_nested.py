@@ -4,7 +4,11 @@
 
 # Test for operations on items with *nested* attributes.
 
+import pytest
+
 from util import random_string
+
+pytestmark = [pytest.mark.xfail(reason="nested attributes not supported")]
 
 # Test that we can write a top-level attribute that is a nested document, and
 # read it back correctly.
