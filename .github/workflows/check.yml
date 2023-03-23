@@ -17,6 +17,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+      - uses: Swatinem/rust-cache@v2
       - name: cargo fmt --check
         run: cargo fmt --check
   clippy:
@@ -38,6 +39,7 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
+      - uses: Swatinem/rust-cache@v2
       - name: cargo clippy
         uses: actions-rs/clippy-check@v1
         with:
@@ -51,6 +53,7 @@ jobs:
           submodules: true
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
       - name: cargo doc
         run: cargo doc --no-deps --all-features
         env:
@@ -66,6 +69,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: cargo install cargo-hack
         uses: taiki-e/install-action@cargo-hack
+      - uses: Swatinem/rust-cache@v2
       - name: cargo hack
         run: cargo hack --feature-powerset check --lib --tests
   msrv:
@@ -84,5 +88,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.msrv }}
+      - uses: Swatinem/rust-cache@v2
       - name: cargo +${{ matrix.msrv }} check
         run: cargo check

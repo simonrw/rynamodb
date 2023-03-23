@@ -45,6 +45,8 @@
               cargo-insta
               rustfmt
               testPython
+              ruff
+              black
             ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin darwin-packages;
 
             shellHook = ":";

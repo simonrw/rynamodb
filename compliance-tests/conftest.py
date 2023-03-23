@@ -11,9 +11,7 @@
 
 import pytest
 import boto3
-import requests
-import re
-from util import create_test_table, is_aws, scylla_log
+from util import create_test_table
 
 # When tests are run with HTTPS, the server often won't have its SSL
 # certificate signed by a known authority. So we will disable certificate
@@ -21,6 +19,7 @@ from util import create_test_table, is_aws, scylla_log
 # that, we start getting scary-looking warning messages, saying that this
 # makes HTTPS insecure. The following silences those warnings:
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Test that the Boto libraries are new enough. These tests want to test a
@@ -31,34 +30,37 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import botocore
 import sys
 from packaging.version import Version
-if (Version(botocore.__version__) < Version('1.12.54')):
-    pytest.exit("Your Boto library is too old. Please upgrade it,\ne.g. using:\n    sudo pip{} install --upgrade boto3".format(sys.version_info[0]))
+
+if Version(botocore.__version__) < Version("1.12.54"):
+    pytest.exit(
+        "Your Boto library is too old. Please upgrade it,\ne.g. using:\n    sudo pip{} install --upgrade boto3".format(
+            sys.version_info[0]
+        )
+    )
 
 # By default, tests run against a local Scylla installation on localhost:8080/.
 # The "--aws" option can be used to run against Amazon DynamoDB in the us-east-1
 # region.
 def pytest_addoption(parser):
-    parser.addoption("--aws", action="store_true",
-        help="run against AWS instead of a local Scylla installation")
-    parser.addoption("--https", action="store_true",
+    parser.addoption(
+        "--aws",
+        action="store_true",
+        help="run against AWS instead of a local Scylla installation",
+    )
+    parser.addoption(
+        "--https",
+        action="store_true",
         help="communicate via HTTPS protocol on port 8043 instead of HTTP when"
-            " running against a local Scylla installation")
-    parser.addoption("--url", action="store",
-        help="communicate with given URL instead of defaults")
-    parser.addoption("--runveryslow", action="store_true",
-        help="run tests marked veryslow instead of skipping them")
+        " running against a local Scylla installation",
+    )
+    parser.addoption(
+        "--url", action="store", help="communicate with given URL instead of defaults"
+    )
+
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "veryslow: mark test as very slow to run")
 
-def pytest_collection_modifyitems(config, items):
-    if config.getoption("--runveryslow"):
-        # --runveryslow given in cli: do not skip veryslow tests
-        return
-    skip_veryslow = pytest.mark.skip(reason="need --runveryslow option to run")
-    for item in items:
-        if "veryslow" in item.keywords:
-            item.add_marker(skip_veryslow)
 
 # "dynamodb" fixture: set up client object for communicating with the DynamoDB
 # API. Currently this chooses either Amazon's DynamoDB in the default region
@@ -72,22 +74,24 @@ def dynamodb(request):
     # only makes it impossible for us to test various error conditions,
     # because boto3 checks them before we can get the server to check them.
     boto_config = botocore.client.Config(parameter_validation=False)
-    if request.config.getoption('aws'):
-        return boto3.resource('dynamodb', config=boto_config)
-    else:
-        # Even though we connect to the local installation, Boto3 still
-        # requires us to specify dummy region and credential parameters,
-        # otherwise the user is forced to properly configure ~/.aws even
-        # for local runs.
-        if request.config.getoption('url') != None:
-            local_url = request.config.getoption('url')
-        else:
-            local_url = 'https://localhost:8043' if request.config.getoption('https') else 'http://localhost:8000'
-        # Disable verifying in order to be able to use self-signed TLS certificates
-        verify = not request.config.getoption('https')
-        return boto3.resource('dynamodb', endpoint_url=local_url, verify=verify,
-            region_name='us-east-1', aws_access_key_id='alternator', aws_secret_access_key='secret_pass',
-            config=boto_config.merge(botocore.client.Config(retries={"max_attempts": 0}, read_timeout=300)))
+    # Even though we connect to the local installation, Boto3 still
+    # requires us to specify dummy region and credential parameters,
+    # otherwise the user is forced to properly configure ~/.aws even
+    # for local runs.
+    local_url = "http://localhost:8000"
+
+    # Disable verifying in order to be able to use self-signed TLS certificates
+    return boto3.resource(
+        "dynamodb",
+        endpoint_url=local_url,
+        region_name="us-east-1",
+        aws_access_key_id="alternator",
+        aws_secret_access_key="secret_pass",
+        config=boto_config.merge(
+            botocore.client.Config(retries={"max_attempts": 0}, read_timeout=300)
+        ),
+    )
+
 
 @pytest.fixture(scope="session")
 def dynamodbstreams(request):
@@ -95,39 +99,22 @@ def dynamodbstreams(request):
     # only makes it impossible for us to test various error conditions,
     # because boto3 checks them before we can get the server to check them.
     boto_config = botocore.client.Config(parameter_validation=False)
-    if request.config.getoption('aws'):
-        return boto3.client('dynamodbstreams', config=boto_config)
-    else:
-        # Even though we connect to the local installation, Boto3 still
-        # requires us to specify dummy region and credential parameters,
-        # otherwise the user is forced to properly configure ~/.aws even
-        # for local runs.
-        if request.config.getoption('url') != None:
-            local_url = request.config.getoption('url')
-        else:
-            local_url = 'https://localhost:8043' if request.config.getoption('https') else 'http://localhost:8000'
-        # Disable verifying in order to be able to use self-signed TLS certificates
-        verify = not request.config.getoption('https')
-        return boto3.client('dynamodbstreams', endpoint_url=local_url, verify=verify,
-            region_name='us-east-1', aws_access_key_id='alternator', aws_secret_access_key='secret_pass',
-            config=boto_config.merge(botocore.client.Config(retries={"max_attempts": 0}, read_timeout=300)))
-
-# A function-scoped autouse=True fixture allows us to test after every test
-# that the server is still alive - and if not report the test which crashed
-# it and stop running any more tests.
-# @pytest.fixture(scope="function", autouse=True)
-# def dynamodb_test_connection(dynamodb, request, optional_rest_api):
-#     scylla_log(optional_rest_api, f'test/alternator: Starting {request.node.parent.name}::{request.node.name}', 'info')
-#     yield
-#     try:
-#         # We want to run a do-nothing DynamoDB command. The health-check
-#         # URL is the fastest one.
-#         url = dynamodb.meta.client._endpoint.host
-#         response = requests.get(url, verify=False)
-#         assert response.ok
-#     except:
-#         pytest.exit(f"Scylla appears to have crashed in test {request.node.parent.name}::{request.node.name}")
-#     scylla_log(optional_rest_api, f'test/alternator: Ended {request.node.parent.name}::{request.node.name}', 'info')
+    # Even though we connect to the local installation, Boto3 still
+    # requires us to specify dummy region and credential parameters,
+    # otherwise the user is forced to properly configure ~/.aws even
+    # for local runs.
+    local_url = "http://localhost:8000"
+    # Disable verifying in order to be able to use self-signed TLS certificates
+    return boto3.client(
+        "dynamodbstreams",
+        endpoint_url=local_url,
+        region_name="us-east-1",
+        aws_access_key_id="alternator",
+        aws_secret_access_key="secret_pass",
+        config=boto_config.merge(
+            botocore.client.Config(retries={"max_attempts": 0}, read_timeout=300)
+        ),
+    )
 
 
 # "test_table" fixture: Create and return a temporary table to be used in tests
@@ -149,14 +136,17 @@ def dynamodbstreams(request):
 # a parallel run's temporary tables.
 @pytest.fixture(scope="session")
 def test_table(dynamodb):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' },
-                    { 'AttributeName': 'c', 'KeyType': 'RANGE' }
+    table = create_test_table(
+        dynamodb,
+        KeySchema=[
+            {"AttributeName": "p", "KeyType": "HASH"},
+            {"AttributeName": "c", "KeyType": "RANGE"},
         ],
         AttributeDefinitions=[
-                    { 'AttributeName': 'p', 'AttributeType': 'S' },
-                    { 'AttributeName': 'c', 'AttributeType': 'S' },
-        ])
+            {"AttributeName": "p", "AttributeType": "S"},
+            {"AttributeName": "c", "AttributeType": "S"},
+        ],
+    )
     yield table
     # We get back here when this fixture is torn down. We ask Dynamo to delete
     # this table, but not wait for the deletion to complete. The next time
@@ -164,52 +154,103 @@ def test_table(dynamodb):
     # anyway.
     table.delete()
 
+
 # The following fixtures test_table_* are similar to test_table but create
 # tables with different key schemas.
 @pytest.fixture(scope="session")
 def test_table_s(dynamodb):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' }, ],
-        AttributeDefinitions=[ { 'AttributeName': 'p', 'AttributeType': 'S' } ])
+    table = create_test_table(
+        dynamodb,
+        KeySchema=[
+            {"AttributeName": "p", "KeyType": "HASH"},
+        ],
+        AttributeDefinitions=[{"AttributeName": "p", "AttributeType": "S"}],
+    )
     yield table
     table.delete()
+
+
 # test_table_s_2 has exactly the same schema as test_table_s, and is useful
 # for tests which need two different tables with the same schema.
 @pytest.fixture(scope="session")
 def test_table_s_2(dynamodb):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' }, ],
-        AttributeDefinitions=[ { 'AttributeName': 'p', 'AttributeType': 'S' } ])
+    table = create_test_table(
+        dynamodb,
+        KeySchema=[
+            {"AttributeName": "p", "KeyType": "HASH"},
+        ],
+        AttributeDefinitions=[{"AttributeName": "p", "AttributeType": "S"}],
+    )
     yield table
     table.delete()
+
+
 @pytest.fixture(scope="session")
+@pytest.mark.xfail(strict=True, reason="B data type not implemented yet")
 def test_table_b(dynamodb):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' }, ],
-        AttributeDefinitions=[ { 'AttributeName': 'p', 'AttributeType': 'B' } ])
+    table = create_test_table(
+        dynamodb,
+        KeySchema=[
+            {"AttributeName": "p", "KeyType": "HASH"},
+        ],
+        AttributeDefinitions=[{"AttributeName": "p", "AttributeType": "B"}],
+    )
     yield table
     table.delete()
+
+
 @pytest.fixture(scope="session")
+@pytest.mark.xfail(strict=True, reason="B data type not implemented yet")
 def test_table_sb(dynamodb):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' }, { 'AttributeName': 'c', 'KeyType': 'RANGE' } ],
-        AttributeDefinitions=[ { 'AttributeName': 'p', 'AttributeType': 'S' }, { 'AttributeName': 'c', 'AttributeType': 'B' } ])
+    table = create_test_table(
+        dynamodb,
+        KeySchema=[
+            {"AttributeName": "p", "KeyType": "HASH"},
+            {"AttributeName": "c", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "p", "AttributeType": "S"},
+            {"AttributeName": "c", "AttributeType": "B"},
+        ],
+    )
     yield table
     table.delete()
+
+
 @pytest.fixture(scope="session")
+@pytest.mark.xfail(strict=True, reason="N data type not implemented yet")
 def test_table_sn(dynamodb):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' }, { 'AttributeName': 'c', 'KeyType': 'RANGE' } ],
-        AttributeDefinitions=[ { 'AttributeName': 'p', 'AttributeType': 'S' }, { 'AttributeName': 'c', 'AttributeType': 'N' } ])
+    table = create_test_table(
+        dynamodb,
+        KeySchema=[
+            {"AttributeName": "p", "KeyType": "HASH"},
+            {"AttributeName": "c", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "p", "AttributeType": "S"},
+            {"AttributeName": "c", "AttributeType": "N"},
+        ],
+    )
     yield table
     table.delete()
+
+
 @pytest.fixture(scope="session")
 def test_table_ss(dynamodb):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' }, { 'AttributeName': 'c', 'KeyType': 'RANGE' } ],
-        AttributeDefinitions=[ { 'AttributeName': 'p', 'AttributeType': 'S' }, { 'AttributeName': 'c', 'AttributeType': 'S' } ])
+    table = create_test_table(
+        dynamodb,
+        KeySchema=[
+            {"AttributeName": "p", "KeyType": "HASH"},
+            {"AttributeName": "c", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "p", "AttributeType": "S"},
+            {"AttributeName": "c", "AttributeType": "S"},
+        ],
+    )
     yield table
     table.delete()
+
 
 # "filled_test_table" fixture:  Create a temporary table to be used in tests
 # that involve reading data - GetItem, Scan, etc. The table is filled with
@@ -221,29 +262,40 @@ def test_table_ss(dynamodb):
 # This fixture returns both a table object and the description of all items
 # inserted into it.
 @pytest.fixture(scope="session")
+@pytest.mark.xfail(strict=True, reason="batch writing not supported yet")
 def filled_test_table(dynamodb):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' },
-                    { 'AttributeName': 'c', 'KeyType': 'RANGE' }
+    table = create_test_table(
+        dynamodb,
+        KeySchema=[
+            {"AttributeName": "p", "KeyType": "HASH"},
+            {"AttributeName": "c", "KeyType": "RANGE"},
         ],
         AttributeDefinitions=[
-                    { 'AttributeName': 'p', 'AttributeType': 'S' },
-                    { 'AttributeName': 'c', 'AttributeType': 'S' },
-        ])
+            {"AttributeName": "p", "AttributeType": "S"},
+            {"AttributeName": "c", "AttributeType": "S"},
+        ],
+    )
     count = 164
-    items = [{
-        'p': str(i),
-        'c': str(i),
-        'attribute': "x" * 7,
-        'another': "y" * 16
-    } for i in range(count)]
-    items = items + [{
-        'p': 'long',
-        'c': str(i),
-        'attribute': "x" * (1 + i % 7),
-        'another': "y" * (1 + i % 16)
-    } for i in range(count)]
-    items.append({'p': 'hello', 'c': 'world', 'str': 'and now for something completely different'})
+    items = [
+        {"p": str(i), "c": str(i), "attribute": "x" * 7, "another": "y" * 16}
+        for i in range(count)
+    ]
+    items = items + [
+        {
+            "p": "long",
+            "c": str(i),
+            "attribute": "x" * (1 + i % 7),
+            "another": "y" * (1 + i % 16),
+        }
+        for i in range(count)
+    ]
+    items.append(
+        {
+            "p": "hello",
+            "c": "world",
+            "str": "and now for something completely different",
+        }
+    )
 
     with table.batch_writer() as batch:
         for item in items:
@@ -251,52 +303,3 @@ def filled_test_table(dynamodb):
 
     yield table, items
     table.delete()
-
-# The "scylla_only" fixture can be used by tests for Scylla-only features,
-# which do not exist on AWS DynamoDB. A test using this fixture will be
-# skipped if running with "--aws".
-@pytest.fixture(scope="session")
-def scylla_only(dynamodb):
-    if is_aws(dynamodb):
-        pytest.skip('Scylla-only feature not supported by AWS')
-
-# The "test_table_s_forbid_rmw" fixture is the same as test_table_s, except
-# with the "forbid_rmw" write isolation mode. This is useful for verifying
-# that writes that we think should not need a read-before-write in fact do
-# not need it.
-# Because forbid_rmw is a Scylla-only feature, this test is skipped when not
-# running against Scylla.
-@pytest.fixture(scope="session")
-def test_table_s_forbid_rmw(dynamodb, scylla_only):
-    table = create_test_table(dynamodb,
-        KeySchema=[ { 'AttributeName': 'p', 'KeyType': 'HASH' }, ],
-        AttributeDefinitions=[ { 'AttributeName': 'p', 'AttributeType': 'S' } ])
-    arn = table.meta.client.describe_table(TableName=table.name)['Table']['TableArn']
-    table.meta.client.tag_resource(ResourceArn=arn, Tags=[{'Key': 'system:write_isolation', 'Value': 'forbid_rmw'}])
-    yield table
-    table.delete()
-
-# A fixture allowing to make Scylla-specific REST API requests.
-# If we're not testing Scylla, or the REST API port (10000) is not available,
-# the test using this fixture will be skipped with a message about the REST
-# API not being available.
-@pytest.fixture(scope="session")
-def rest_api(dynamodb, optional_rest_api):
-    if optional_rest_api is None:
-        pytest.skip('Cannot connect to Scylla REST API')
-    return optional_rest_api
-@pytest.fixture(scope="session")
-def optional_rest_api(dynamodb):
-    if is_aws(dynamodb):
-        return None
-    url = dynamodb.meta.client._endpoint.host
-    # The REST API is on port 10000, and always http, not https.
-    url = re.sub(r':[0-9]+(/|$)', ':10000', url)
-    url = re.sub(r'^https:', 'http:', url)
-    # Scylla's REST API does not have an official "ping" command,
-    # so we just list the keyspaces as a (usually) short operation
-    try:
-        requests.get(f'{url}/column_family/name/keyspace', timeout=1).raise_for_status()
-    except:
-        return None
-    return url
