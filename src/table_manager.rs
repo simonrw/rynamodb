@@ -48,11 +48,14 @@ impl TableManager {
     pub fn get_table(&self, table_name: &str) -> Option<&table::Table> {
         for account in self.per_account.values() {
             for table in account.tables.values() {
+                tracing::trace!(created_table_name = %table.name, requested_table_name = %table_name, "checking table name");
                 if table.name == table_name {
                     return Some(table);
                 }
             }
         }
+
+        tracing::debug!(%table_name, "could not find table");
 
         None
     }

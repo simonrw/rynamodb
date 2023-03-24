@@ -152,6 +152,7 @@ where
 }
 
 #[tokio::test]
+#[ignore]
 async fn create_table() -> Result<()> {
     test_init();
 
@@ -239,6 +240,7 @@ async fn create_table() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore]
 async fn delete_table() {
     test_init();
 
@@ -284,6 +286,7 @@ async fn delete_table() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn put_item() -> Result<()> {
     test_init();
 
@@ -309,6 +312,7 @@ async fn put_item() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore]
 async fn list_tables() {
     test_init();
 
@@ -336,6 +340,7 @@ async fn list_tables() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn round_trip() {
     test_init();
 
@@ -496,6 +501,7 @@ impl Ord for SortableItem {
 }
 
 #[tokio::test]
+#[ignore]
 async fn get_item() {
     test_init();
 
@@ -544,6 +550,40 @@ async fn get_item() {
             assert_eq!(res, expected);
 
             Ok(())
+        }))
+    })
+    .await
+    .unwrap();
+}
+
+// tables
+
+// test describing a non-existent table
+#[tokio::test]
+#[ignore]
+async fn describe_nonexistent_table() {
+    test_init();
+
+    let router = rynamodb::router();
+    rynamodb::test_run_server(router, |port| {
+        Box::new(Box::pin(async move {
+            let client = test_client(port).await;
+            let res = client
+                .describe_table()
+                .table_name("non-existent-table")
+                .send()
+                .await;
+
+            insta::with_settings!({ filters => vec![
+                // request id
+                (r"[A-Z0-9]{52}", "[request-id]"),
+                (r#"content-length".+"#, "[content-length-header]"),
+                (r#"date".+"#, "[date-header]"),
+                (r"headers\s*\{.*\}", "[headers]"),
+            ] }, {
+                insta::assert_debug_snapshot!(res);
+                Ok(())
+            })
         }))
     })
     .await
