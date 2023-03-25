@@ -31,6 +31,18 @@ impl<E> ToValue for aws_sdk_dynamodb::types::SdkError<E> {
     }
 }
 
+impl<R, E> ToValue for Result<R, E>
+where
+    E: ToValue,
+{
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        match self {
+            Ok(_) => panic!("not implemented for Ok types"),
+            Err(e) => e.to_json_value(),
+        }
+    }
+}
+
 fn test_init() {
     let _ = tracing_subscriber::fmt::try_init();
 
@@ -594,13 +606,8 @@ async fn describe_nonexistent_table() {
                 .send()
                 .await;
 
-            match res {
-                Ok(_) => panic!("value should not be ok"),
-                Err(e) => {
-                    insta::assert_json_snapshot!(e.to_json_value());
-                    Ok(())
-                }
-            }
+            insta::assert_json_snapshot!(res.to_json_value());
+            Ok(())
         }))
     })
     .await
