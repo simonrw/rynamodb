@@ -10,6 +10,7 @@ use serde::ser::SerializeMap;
 #[derive(Debug)]
 pub enum ErrorResponse {
     ResourceNotFound { name: String },
+    SerializationError,
 }
 
 // How to encode the errors
@@ -29,6 +30,11 @@ impl serde::Serialize for ErrorResponse {
                     "message",
                     &format!("Requested resource not found: Table: {} not found", name),
                 )?;
+                map.end()
+            }
+            Self::SerializationError => {
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("__type", "com.amazon.coral.service#SerializationException")?;
                 map.end()
             }
         }
@@ -52,6 +58,9 @@ impl IntoResponse for ErrorResponse {
                 headers.insert(header::CONNECTION, HeaderValue::from_static("keep-alive"));
 
                 (StatusCode::BAD_REQUEST, headers, Json(self)).into_response()
+            }
+            ErrorResponse::SerializationError => {
+                (StatusCode::BAD_REQUEST, Json(self)).into_response()
             }
         }
     }

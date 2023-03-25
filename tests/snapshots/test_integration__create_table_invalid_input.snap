@@ -1,0 +1,10 @@
+---
+source: tests/test_integration.rs
+expression: res.to_json_value().await
+---
+{
+  "body": {
+    "__type": "com.amazon.coral.service#SerializationException"
+  },
+  "status": 400
+}

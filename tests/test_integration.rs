@@ -9,14 +9,24 @@ use aws_sdk_dynamodb::{
     types::SdkError,
     Client,
 };
+use axum::{
+    async_trait,
+    http::{HeaderMap, HeaderName, HeaderValue},
+};
 use eyre::{Context, Result};
+use reqwest::header::CONTENT_TYPE;
 
+#[async_trait]
 trait ToValue {
-    fn to_json_value(&self) -> Option<serde_json::Value>;
+    async fn to_json_value(self) -> Option<serde_json::Value>;
 }
 
-impl<E> ToValue for aws_sdk_dynamodb::types::SdkError<E> {
-    fn to_json_value(&self) -> Option<serde_json::Value> {
+#[async_trait]
+impl<E> ToValue for aws_sdk_dynamodb::types::SdkError<E>
+where
+    E: Sync + Send,
+{
+    async fn to_json_value(self) -> Option<serde_json::Value> {
         match self {
             SdkError::ServiceError(e) => {
                 let raw = e.raw();
@@ -31,14 +41,40 @@ impl<E> ToValue for aws_sdk_dynamodb::types::SdkError<E> {
     }
 }
 
+#[async_trait]
 impl<R, E> ToValue for Result<R, E>
 where
-    E: ToValue,
+    E: ToValue + Sync + Send,
+    R: Sync + Send,
 {
-    fn to_json_value(&self) -> Option<serde_json::Value> {
+    async fn to_json_value(self) -> Option<serde_json::Value> {
         match self {
             Ok(_) => panic!("not implemented for Ok types"),
-            Err(e) => e.to_json_value(),
+            Err(e) => e.to_json_value().await,
+        }
+    }
+}
+
+#[async_trait]
+impl ToValue for Result<reqwest::Response, reqwest::Error> {
+    async fn to_json_value(self) -> Option<serde_json::Value> {
+        match self {
+            Ok(r) => {
+                let status = r.status().as_u16();
+                let body: serde_json::Value = r.json().await.unwrap();
+
+                dbg!(status, &body);
+
+                Some(serde_json::json!({
+                    "status": status,
+                    "body": body,
+                }))
+            }
+
+            Err(e) => {
+                dbg!(&e);
+                None
+            }
         }
     }
 }
@@ -185,7 +221,45 @@ where
 }
 
 #[tokio::test]
-#[ignore]
+async fn create_table_invalid_input() {
+    test_init();
+
+    let router = rynamodb::router();
+    rynamodb::test_run_server(router, |port| {
+        Box::new(Box::pin(async move {
+            let url = if targeting_aws() {
+                format!("https://dynamodb.eu-west-2.amazonaws.com")
+            } else {
+                format!("http://localhost:{port}")
+            };
+            let client = reqwest::Client::new();
+            let headers = {
+                let mut headers = HeaderMap::new();
+                headers.insert(
+                    HeaderName::from_static("x-amz-target"),
+                    HeaderValue::from_static("DynamoDB_20120810.CreateTable"),
+                );
+                headers.insert(
+                    CONTENT_TYPE,
+                    HeaderValue::from_static("application/x-amz-json-1.0"),
+                );
+                headers
+            };
+            let res = client
+                .post(&url)
+                .headers(headers)
+                .body("invalid json")
+                .send()
+                .await;
+            insta::assert_json_snapshot!(res.to_json_value().await);
+            Ok(())
+        }))
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn create_table() -> Result<()> {
     test_init();
 
@@ -606,7 +680,7 @@ async fn describe_nonexistent_table() {
                 .send()
                 .await;
 
-            insta::assert_json_snapshot!(res.to_json_value());
+            insta::assert_json_snapshot!(res.to_json_value().await);
             Ok(())
         }))
     })
