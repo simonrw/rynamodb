@@ -1,61 +1,8 @@
 ---
 source: tests/test_integration.rs
-expression: res
+expression: e.to_json_value()
 ---
-Err(
-    ServiceError(
-        ServiceError {
-            source: DescribeTableError {
-                kind: ResourceNotFoundException(
-                    ResourceNotFoundException {
-                        message: Some(
-                            "Requested resource not found: Table: non-existent-table not found",
-                        ),
-                    },
-                ),
-                meta: Error {
-                    code: Some(
-                        "ResourceNotFoundException",
-                    ),
-                    message: Some(
-                        "Requested resource not found: Table: non-existent-table not found",
-                    ),
-                    request_id: Some(
-                        "[request-id]",
-                    ),
-                    extras: {},
-                },
-            },
-            raw: Response {
-                inner: Response {
-                    status: 400,
-                    version: HTTP/1.1,
-                    headers: {
-                        "server": "Server",
-                        "[date-header]
-                        "content-type": "application/x-amz-json-1.0",
-                        "[content-length-header]
-                        "connection": "keep-alive",
-                        "x-amzn-requestid": "[request-id]",
-                        "x-amz-crc32": "388192977",
-                    },
-                    body: SdkBody {
-                        inner: Once(
-                            Some(
-                                b"{\"__type\":\"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException\",\"message\":\"Requested resource not found: Table: non-existent-table not found\"}",
-                            ),
-                        ),
-                        retryable: true,
-                    },
-                },
-                properties: SharedPropertyBag(
-                    Mutex {
-                        data: PropertyBag,
-                        poisoned: false,
-                        ..
-                    },
-                ),
-            },
-        },
-    ),
-)
+{
+  "__type": "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
+  "message": "Requested resource not found: Table: non-existent-table not found"
+}

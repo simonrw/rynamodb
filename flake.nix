@@ -22,6 +22,8 @@
         darwin-packages = with pkgs; with pkgs.darwin.apple_sdk; [
           libiconv
           frameworks.Security
+          frameworks.CoreFoundation
+          frameworks.Security
         ];
 
         testPython = pkgs.python3.withPackages (ps: with ps; [

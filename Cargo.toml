@@ -25,7 +25,7 @@ clap = { version = "4.1.11", features = ["derive"] }
 [dev-dependencies]
 aws-config = "0.54.1"
 aws-sdk-dynamodb = "0.24.0"
-insta = { version = "1.29.0", features = ["redactions", "filters"] }
+insta = { version = "1.29.0", features = ["redactions", "filters", "json"] }
 
 [profile.release]
 opt-level = "z"

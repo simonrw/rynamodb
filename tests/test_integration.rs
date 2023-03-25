@@ -6,9 +6,30 @@ use aws_sdk_dynamodb::{
         ScalarAttributeType,
     },
     output::GetItemOutput,
+    types::SdkError,
     Client,
 };
 use eyre::{Context, Result};
+
+trait ToValue {
+    fn to_json_value(&self) -> Option<serde_json::Value>;
+}
+
+impl<E> ToValue for aws_sdk_dynamodb::types::SdkError<E> {
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        match self {
+            SdkError::ServiceError(e) => {
+                let raw = e.raw();
+                let response = raw.http();
+                let body = response.body();
+                let bytes = body.bytes().unwrap();
+                let value = serde_json::from_slice(bytes).expect("invalid json body");
+                value
+            }
+            _ => None,
+        }
+    }
+}
 
 fn test_init() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -560,7 +581,6 @@ async fn get_item() {
 
 // test describing a non-existent table
 #[tokio::test]
-#[ignore]
 async fn describe_nonexistent_table() {
     test_init();
 
@@ -574,16 +594,13 @@ async fn describe_nonexistent_table() {
                 .send()
                 .await;
 
-            insta::with_settings!({ filters => vec![
-                // request id
-                (r"[A-Z0-9]{52}", "[request-id]"),
-                (r#"content-length".+"#, "[content-length-header]"),
-                (r#"date".+"#, "[date-header]"),
-                (r"headers\s*\{.*\}", "[headers]"),
-            ] }, {
-                insta::assert_debug_snapshot!(res);
-                Ok(())
-            })
+            match res {
+                Ok(_) => panic!("value should not be ok"),
+                Err(e) => {
+                    insta::assert_json_snapshot!(e.to_json_value());
+                    Ok(())
+                }
+            }
         }))
     })
     .await
