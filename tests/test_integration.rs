@@ -682,6 +682,21 @@ async fn describe_nonexistent_table() {
     .unwrap();
 }
 
+#[tokio::test]
+async fn scan_missing_table() {
+    test_init();
+
+    with_table(|_table_name, client| {
+        Box::new(Box::pin(async move {
+            let res = client.scan().table_name("invalid table").send().await;
+            insta::assert_json_snapshot!(res.to_json_value().await);
+            Ok(())
+        }))
+    })
+    .await
+    .unwrap();
+}
+
 async fn create_client(endpoint_url: Option<&str>) -> aws_sdk_dynamodb::Client {
     match endpoint_url {
         Some(url) => {

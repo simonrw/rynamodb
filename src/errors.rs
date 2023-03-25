@@ -9,7 +9,7 @@ use serde::ser::SerializeMap;
 
 #[derive(Debug)]
 pub enum ErrorResponse {
-    ResourceNotFound { name: String },
+    ResourceNotFound { name: Option<String> },
     SerializationError,
     RynamodbError(Box<dyn std::error::Error>),
 }
@@ -27,10 +27,14 @@ impl serde::Serialize for ErrorResponse {
                     "__type",
                     "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
                 )?;
-                map.serialize_entry(
-                    "message",
-                    &format!("Requested resource not found: Table: {} not found", name),
-                )?;
+                if let Some(name) = name {
+                    map.serialize_entry(
+                        "message",
+                        &format!("Requested resource not found: Table: {} not found", name),
+                    )?;
+                } else {
+                    map.serialize_entry("message", "Requested resource not found")?;
+                }
                 map.end()
             }
             Self::SerializationError => {
