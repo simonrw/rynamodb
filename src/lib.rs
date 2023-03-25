@@ -176,7 +176,9 @@ async fn handle_get_item(
     tracing::debug!(?input, "parsed input");
 
     let unlocked_manager = manager.read().unwrap();
-    let table = unlocked_manager.get_table(&input.table_name).expect("TODO");
+    let table = unlocked_manager
+        .get_table(&input.table_name)
+        .ok_or_else(|| ErrorResponse::ResourceNotFound { name: None })?;
     tracing::debug!(table_name = ?input.table_name, "found table");
 
     let res = table.get_item(input.key);

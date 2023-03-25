@@ -1,0 +1,8 @@
+---
+source: tests/test_integration.rs
+expression: res.to_json_value().await
+---
+{
+  "__type": "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
+  "message": "Requested resource not found"
+}

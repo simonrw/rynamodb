@@ -204,7 +204,6 @@ where
             // run the test closure
             let res = f(table_name.clone(), client.clone()).await;
 
-            // TODO: drop table
             match client.delete_table().table_name(&table_name).send().await {
                 Ok(_) => {}
                 Err(e) if targeting_aws() => {
@@ -689,6 +688,27 @@ async fn scan_missing_table() {
     with_table(|_table_name, client| {
         Box::new(Box::pin(async move {
             let res = client.scan().table_name("invalid table").send().await;
+            insta::assert_json_snapshot!(res.to_json_value().await);
+            Ok(())
+        }))
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn get_item_missing_table() {
+    test_init();
+
+    with_table(|_table_name, client| {
+        Box::new(Box::pin(async move {
+            let res = client
+                .get_item()
+                .table_name("invalid-table")
+                .key("pk", AttributeValue::S("abc".to_string()))
+                .key("sk", AttributeValue::S("def".to_string()))
+                .send()
+                .await;
             insta::assert_json_snapshot!(res.to_json_value().await);
             Ok(())
         }))
