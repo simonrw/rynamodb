@@ -11,6 +11,7 @@ use serde::ser::SerializeMap;
 pub enum ErrorResponse {
     ResourceNotFound { name: String },
     SerializationError,
+    RynamodbError(Box<dyn std::error::Error>),
 }
 
 // How to encode the errors
@@ -37,6 +38,9 @@ impl serde::Serialize for ErrorResponse {
                 map.serialize_entry("__type", "com.amazon.coral.service#SerializationException")?;
                 map.end()
             }
+            Self::RynamodbError(_) => {
+                todo!()
+            }
         }
     }
 }
@@ -61,6 +65,9 @@ impl IntoResponse for ErrorResponse {
             }
             ErrorResponse::SerializationError => {
                 (StatusCode::BAD_REQUEST, Json(self)).into_response()
+            }
+            ErrorResponse::RynamodbError(_) => {
+                todo!()
             }
         }
     }

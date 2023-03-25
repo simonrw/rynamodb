@@ -347,7 +347,6 @@ async fn create_table() -> Result<()> {
 }
 
 #[tokio::test]
-#[ignore]
 async fn delete_table() {
     test_init();
 
@@ -393,7 +392,6 @@ async fn delete_table() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn put_item() -> Result<()> {
     test_init();
 
@@ -419,7 +417,6 @@ async fn put_item() -> Result<()> {
 }
 
 #[tokio::test]
-#[ignore]
 async fn list_tables() {
     test_init();
 
@@ -447,7 +444,6 @@ async fn list_tables() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn round_trip() {
     test_init();
 
@@ -520,7 +516,6 @@ async fn round_trip() {
 
 // TODO: sort the results so that they are stable
 #[tokio::test]
-#[ignore]
 async fn scan_table() {
     test_init();
 
@@ -608,7 +603,6 @@ impl Ord for SortableItem {
 }
 
 #[tokio::test]
-#[ignore]
 async fn get_item() {
     test_init();
 

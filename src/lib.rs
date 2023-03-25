@@ -1,7 +1,5 @@
 use eyre::Context;
-use serde::Serialize;
 use std::{
-    convert::Infallible,
     future::Future,
     str::FromStr,
     sync::{Arc, RwLock},
@@ -11,12 +9,11 @@ use tracing::Instrument;
 use axum::{
     extract::State,
     http::{HeaderMap, Method, StatusCode, Uri},
-    response::IntoResponse,
     routing::any,
     Json, Router,
 };
 
-use crate::types::ListTablesOutput;
+use crate::{errors::ErrorResponse, types::ListTablesOutput};
 
 mod errors;
 mod extractors;
@@ -88,7 +85,7 @@ pub async fn handler(
     // we cannot use the Json extractor since it requires the `Content-Type: application/json`
     // header, which the SDK does not send.
     body: String,
-) -> Result<Json<types::Response>, errors::ErrorResponse> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     let request_id = uuid::Uuid::new_v4().to_string();
     let span = tracing::debug_span!("request", request_id = request_id);
 
@@ -109,15 +106,14 @@ pub async fn handler(
 
         // parse the body
         let res = match operation {
-            // OperationType::CreateTable => handle_create_table(manager, body).await,
-            // OperationType::PutItem => handle_put_item(manager, body).await,
+            OperationType::CreateTable => handle_create_table(manager, body).await,
+            OperationType::PutItem => handle_put_item(manager, body).await,
             OperationType::DescribeTable => handle_describe_table(manager, body).await,
-            // OperationType::DeleteTable => handle_delete_table(manager, body).await,
-            // OperationType::Query => handle_query(manager, body).await,
-            // OperationType::GetItem => handle_get_item(manager, body).await,
-            // OperationType::ListTables => handle_list_tables(manager, body).await,
-            // OperationType::Scan => handle_scan(manager, body).await,
-            _ => todo!(),
+            OperationType::DeleteTable => handle_delete_table(manager, body).await,
+            OperationType::Query => handle_query(manager, body).await,
+            OperationType::GetItem => handle_get_item(manager, body).await,
+            OperationType::ListTables => handle_list_tables(manager, body).await,
+            OperationType::Scan => handle_scan(manager, body).await,
         };
         tracing::info!(?res, "got result");
         res
@@ -129,18 +125,17 @@ pub async fn handler(
 async fn handle_scan(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
-) -> eyre::Result<Json<types::Response>> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!("handling scan");
-    let input: types::ScanInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    let input: types::ScanInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
     let unlocked_manager = manager.read().unwrap();
-    let table = unlocked_manager
-        .get_table(&input.table_name)
-        .ok_or_else(|| eyre::eyre!("no table found"))?;
+    let table = unlocked_manager.get_table(&input.table_name).expect("TODO");
     tracing::debug!(table_name = ?input.table_name, "found table");
 
-    let res = table.scan().wrap_err("performing scan")?;
+    let res = table.scan().expect("TODO");
 
     let count = res.len();
     Ok(Json(types::Response::Query(types::QueryOutput {
@@ -154,9 +149,10 @@ async fn handle_scan(
 async fn handle_list_tables(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
-) -> eyre::Result<Json<types::Response>> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!("handling list_tables");
-    let _input: types::ListTablesInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    let _input: types::ListTablesInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
 
     // TODO: input handling
     let unlocked_manager = manager.read().unwrap();
@@ -171,15 +167,14 @@ async fn handle_list_tables(
 async fn handle_get_item(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
-) -> eyre::Result<Json<types::Response>> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!("handling get_item");
-    let input: types::GetItemInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    let input: types::GetItemInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
     let unlocked_manager = manager.read().unwrap();
-    let table = unlocked_manager
-        .get_table(&input.table_name)
-        .ok_or_else(|| eyre::eyre!("no table found"))?;
+    let table = unlocked_manager.get_table(&input.table_name).expect("TODO");
     tracing::debug!(table_name = ?input.table_name, "found table");
 
     let res = table.get_item(input.key);
@@ -193,17 +188,17 @@ async fn handle_get_item(
 async fn handle_query(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
-) -> eyre::Result<Json<types::Response>> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!("handling query");
 
     tracing::debug!(?body, "got body");
-    let input: types::QueryInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    let input: types::QueryInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
     let unlocked_manager = manager.read().unwrap();
-    let table = unlocked_manager
-        .get_table(&input.table_name)
-        .ok_or_else(|| eyre::eyre!("no table found"))?;
+    let table = unlocked_manager.get_table(&input.table_name).expect("TODO");
+    // .ok_or_else(|| eyre::eyre!("no table found"))?;
     tracing::debug!(table_name = ?input.table_name, "found table");
 
     let res = table
@@ -212,7 +207,7 @@ async fn handle_query(
             &input.expression_attribute_names,
             &input.expression_attribute_values,
         )
-        .wrap_err("performing query")?;
+        .expect("TODO");
     tracing::debug!(result = ?res, "found result");
 
     let count = res.len();
@@ -227,14 +222,17 @@ async fn handle_query(
 async fn handle_delete_table(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
-) -> eyre::Result<Json<types::Response>> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!(%body, "handling delete table");
 
-    let input: types::DeleteTableInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    let input: types::DeleteTableInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
     let mut unlocked_manager = manager.write().unwrap();
-    unlocked_manager.delete_table(&input.table_name)?;
+    unlocked_manager
+        .delete_table(&input.table_name)
+        .expect("TODO");
 
     Ok(Json(types::Response::DeleteTable(
         types::DeleteTableOutput {},
@@ -244,10 +242,11 @@ async fn handle_delete_table(
 async fn handle_put_item(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
-) -> eyre::Result<Json<types::Response>> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!("handling put item");
 
-    let input: types::PutItemInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    let input: types::PutItemInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
     // convert the item to our representation
@@ -256,9 +255,9 @@ async fn handle_put_item(
     let mut unlocked_manager = manager.write().unwrap();
     let table = unlocked_manager
         .get_table_mut(&input.table_name)
-        .ok_or_else(|| eyre::eyre!("no table found"))?;
+        .expect("TODO");
 
-    table.insert(attributes).wrap_err("inserting item")?;
+    table.insert(attributes).expect("TODO");
 
     Ok(Json(types::Response::PutItem(types::PutItemOutput {})))
 }
@@ -266,7 +265,7 @@ async fn handle_put_item(
 async fn handle_describe_table(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
-) -> Result<Json<types::Response>, errors::ErrorResponse> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!("handling describe table");
 
     // TODO: propagate the error
@@ -280,7 +279,7 @@ async fn handle_describe_table(
                 table: table.description(),
             },
         ))),
-        None => Err(errors::ErrorResponse::ResourceNotFound {
+        None => Err(ErrorResponse::ResourceNotFound {
             name: input.table_name,
         }),
     }
@@ -289,17 +288,19 @@ async fn handle_describe_table(
 async fn handle_create_table(
     manager: Arc<RwLock<table_manager::TableManager>>,
     body: String,
-) -> eyre::Result<Json<types::Response>> {
+) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!(?body, "handling create table");
     // parse the input
 
-    let input: types::CreateTableInput = serde_json::from_str(&body).wrap_err("invalid json")?;
+    let input: types::CreateTableInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
     // lock: not great, but probably ok for now
     let mut unlocked_manager = manager.write().unwrap();
-    let table =
-        unlocked_manager.new_table(DEFAULT_ACCOUNT_ID, table_manager::Region::UsEast1, input)?;
+    let table = unlocked_manager
+        .new_table(DEFAULT_ACCOUNT_ID, table_manager::Region::UsEast1, input)
+        .expect("creating new table");
 
     Ok(Json(types::Response::CreateTable(
         types::CreateTableOutput {
