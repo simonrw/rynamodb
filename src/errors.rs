@@ -42,8 +42,10 @@ impl serde::Serialize for ErrorResponse {
                 map.serialize_entry("__type", "com.amazon.coral.service#SerializationException")?;
                 map.end()
             }
-            Self::RynamodbError(_) => {
-                todo!()
+            Self::RynamodbError(inner) => {
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("error", &inner.to_string())?;
+                map.end()
             }
         }
     }
@@ -71,8 +73,21 @@ impl IntoResponse for ErrorResponse {
                 (StatusCode::BAD_REQUEST, Json(self)).into_response()
             }
             ErrorResponse::RynamodbError(_) => {
-                todo!()
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(self)).into_response()
             }
         }
+    }
+}
+
+// unit tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialize_internal_error() {
+        let e = ErrorResponse::RynamodbError("bad".into());
+        let val = serde_json::to_string(&e).unwrap();
+        assert_eq!(val, r#"{"error":"bad"}"#);
     }
 }
