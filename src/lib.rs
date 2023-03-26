@@ -201,7 +201,9 @@ async fn handle_query(
     tracing::debug!(?input, "parsed input");
 
     let unlocked_manager = manager.read().unwrap();
-    let table = unlocked_manager.get_table(&input.table_name).expect("TODO");
+    let table = unlocked_manager
+        .get_table(&input.table_name)
+        .ok_or_else(|| ErrorResponse::ResourceNotFound { name: None })?;
     // .ok_or_else(|| eyre::eyre!("no table found"))?;
     tracing::debug!(table_name = ?input.table_name, "found table");
 
@@ -259,7 +261,7 @@ async fn handle_put_item(
     let mut unlocked_manager = manager.write().unwrap();
     let table = unlocked_manager
         .get_table_mut(&input.table_name)
-        .expect("TODO");
+        .ok_or_else(|| ErrorResponse::ResourceNotFound { name: None })?;
 
     table.insert(attributes).expect("TODO");
 
