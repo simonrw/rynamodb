@@ -2,7 +2,7 @@ use axum::{
     async_trait,
     body::{Bytes, HttpBody},
     extract::{FromRequest, FromRequestParts},
-    http::{request::Parts, HeaderName, HeaderValue, Request, StatusCode},
+    http::{request::Parts, HeaderName, HeaderValue, Request},
     BoxError,
 };
 use serde::de::DeserializeOwned;
@@ -70,7 +70,7 @@ impl<S> FromRequestParts<S> for Operation
 where
     S: Send + Sync,
 {
-    type Rejection = (StatusCode, String);
+    type Rejection = String;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -78,14 +78,9 @@ where
     ) -> std::result::Result<Self, Self::Rejection> {
         if let Some(raw_target_string) = parts.headers.get(HeaderName::from_static("x-amz-target"))
         {
-            raw_target_string.try_into().map_err(|e| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    format!("invalid target string: {e:?}"),
-                )
-            })
+            raw_target_string.try_into()
         } else {
-            Err((StatusCode::BAD_REQUEST, "missing target header".to_string()))
+            Err("missing_target_header".to_string())
         }
     }
 }

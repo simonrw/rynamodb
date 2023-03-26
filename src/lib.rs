@@ -8,7 +8,7 @@ use tracing::Instrument;
 
 use axum::{
     extract::State,
-    http::{HeaderMap, Method, StatusCode, Uri},
+    http::{HeaderMap, Method, Uri},
     routing::any,
     Json, Router,
 };
@@ -80,7 +80,7 @@ pub async fn handler(
     uri: Uri,
     method: Method,
     headers: HeaderMap,
-    operation_extractor: std::result::Result<extractors::Operation, (StatusCode, String)>,
+    operation_extractor: std::result::Result<extractors::Operation, String>,
     State(manager): State<Arc<RwLock<table_manager::TableManager>>>,
     // we cannot use the Json extractor since it requires the `Content-Type: application/json`
     // header, which the SDK does not send.
@@ -93,11 +93,7 @@ pub async fn handler(
         name: operation, ..
     } = operation_extractor.map_err(|e| {
         tracing::error!(error = ?e, "operation unhandled");
-        todo!()
-        // (
-        //     StatusCode::NOT_IMPLEMENTED,
-        //     ErrorResponse::from_str(&format!("unhandled operation: {e:?}")).unwrap(),
-        // )
+        ErrorResponse::InvalidOperation(e)
     })?;
 
     async move {
@@ -131,13 +127,15 @@ async fn handle_scan(
         serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
-    let unlocked_manager = manager.read().unwrap();
+    let unlocked_manager = manager.read().map_err(|_| ErrorResponse::MutexUnlock)?;
     let table = unlocked_manager
         .get_table(&input.table_name)
         .ok_or_else(|| ErrorResponse::ResourceNotFound { name: None })?;
     tracing::debug!(table_name = ?input.table_name, "found table");
 
-    let res = table.scan().expect("TODO");
+    let res = table
+        .scan()
+        .map_err(|e| ErrorResponse::RynamodbError(Box::new(e)))?;
 
     let count = res.len();
     Ok(Json(types::Response::Query(types::QueryOutput {
@@ -157,7 +155,7 @@ async fn handle_list_tables(
         serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
 
     // TODO: input handling
-    let unlocked_manager = manager.read().unwrap();
+    let unlocked_manager = manager.read().map_err(|_| ErrorResponse::MutexUnlock)?;
     let table_names = unlocked_manager.table_names();
     tracing::debug!(?table_names, "found table names");
 
@@ -175,7 +173,7 @@ async fn handle_get_item(
         serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
-    let unlocked_manager = manager.read().unwrap();
+    let unlocked_manager = manager.read().map_err(|_| ErrorResponse::MutexUnlock)?;
     let table = unlocked_manager
         .get_table(&input.table_name)
         .ok_or_else(|| ErrorResponse::ResourceNotFound { name: None })?;
@@ -200,7 +198,7 @@ async fn handle_query(
         serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
-    let unlocked_manager = manager.read().unwrap();
+    let unlocked_manager = manager.read().map_err(|_| ErrorResponse::MutexUnlock)?;
     let table = unlocked_manager
         .get_table(&input.table_name)
         .ok_or_else(|| ErrorResponse::ResourceNotFound { name: None })?;
@@ -213,7 +211,7 @@ async fn handle_query(
             &input.expression_attribute_names,
             &input.expression_attribute_values,
         )
-        .expect("TODO");
+        .map_err(|e| ErrorResponse::RynamodbError(Box::new(e)))?;
     tracing::debug!(result = ?res, "found result");
 
     let count = res.len();
@@ -235,10 +233,10 @@ async fn handle_delete_table(
         serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
-    let mut unlocked_manager = manager.write().unwrap();
+    let mut unlocked_manager = manager.write().map_err(|_| ErrorResponse::MutexUnlock)?;
     unlocked_manager
         .delete_table(&input.table_name)
-        .expect("TODO");
+        .map_err(|e| ErrorResponse::RynamodbError(format!("{e}").into()))?;
 
     Ok(Json(types::Response::DeleteTable(
         types::DeleteTableOutput {},
@@ -258,12 +256,14 @@ async fn handle_put_item(
     // convert the item to our representation
     let attributes = input.item;
 
-    let mut unlocked_manager = manager.write().unwrap();
+    let mut unlocked_manager = manager.write().map_err(|_| ErrorResponse::MutexUnlock)?;
     let table = unlocked_manager
         .get_table_mut(&input.table_name)
         .ok_or_else(|| ErrorResponse::ResourceNotFound { name: None })?;
 
-    table.insert(attributes).expect("TODO");
+    table
+        .insert(attributes)
+        .map_err(|e| ErrorResponse::RynamodbError(Box::new(e)))?;
 
     Ok(Json(types::Response::PutItem(types::PutItemOutput {})))
 }
@@ -274,11 +274,11 @@ async fn handle_describe_table(
 ) -> Result<Json<types::Response>, ErrorResponse> {
     tracing::debug!("handling describe table");
 
-    // TODO: propagate the error
-    let input: types::DescribeTableInput = serde_json::from_str(&body).unwrap();
+    let input: types::DescribeTableInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
     tracing::debug!(?input, "parsed input");
 
-    let unlocked_manager = manager.read().unwrap();
+    let unlocked_manager = manager.read().map_err(|_| ErrorResponse::MutexUnlock)?;
     match unlocked_manager.get_table(&input.table_name) {
         Some(table) => Ok(Json(types::Response::DescribeTable(
             types::DescribeTableOutput {
@@ -303,10 +303,11 @@ async fn handle_create_table(
     tracing::debug!(?input, "parsed input");
 
     // lock: not great, but probably ok for now
-    let mut unlocked_manager = manager.write().unwrap();
+    let mut unlocked_manager = manager.write().map_err(|_| ErrorResponse::MutexUnlock)?;
     let table = unlocked_manager
         .new_table(DEFAULT_ACCOUNT_ID, table_manager::Region::UsEast1, input)
-        .expect("creating new table");
+        // .map_err(|e| ErrorResponse::RynamodbError(format!("{e}").into()))?;
+        .map_err(|e| ErrorResponse::RynamodbError(format!("{e}").into()))?;
 
     Ok(Json(types::Response::CreateTable(
         types::CreateTableOutput {

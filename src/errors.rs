@@ -12,6 +12,8 @@ pub enum ErrorResponse {
     ResourceNotFound { name: Option<String> },
     SerializationError,
     RynamodbError(Box<dyn std::error::Error>),
+    MutexUnlock,
+    InvalidOperation(String),
 }
 
 // How to encode the errors
@@ -20,9 +22,9 @@ impl serde::Serialize for ErrorResponse {
     where
         S: serde::Serializer,
     {
+        let mut map = serializer.serialize_map(None)?;
         match self {
             Self::ResourceNotFound { name } => {
-                let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry(
                     "__type",
                     "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
@@ -35,19 +37,21 @@ impl serde::Serialize for ErrorResponse {
                 } else {
                     map.serialize_entry("message", "Requested resource not found")?;
                 }
-                map.end()
             }
             Self::SerializationError => {
-                let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("__type", "com.amazon.coral.service#SerializationException")?;
-                map.end()
             }
             Self::RynamodbError(inner) => {
-                let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("error", &inner.to_string())?;
-                map.end()
+            }
+            Self::MutexUnlock => {
+                map.serialize_entry("error", "corrupted internal state")?;
+            }
+            Self::InvalidOperation(name) => {
+                map.serialize_entry("error", &format!("invalid response: {details}"))?;
             }
         }
+        map.end()
     }
 }
 
@@ -69,10 +73,10 @@ impl IntoResponse for ErrorResponse {
 
                 (StatusCode::BAD_REQUEST, headers, Json(self)).into_response()
             }
-            ErrorResponse::SerializationError => {
+            ErrorResponse::SerializationError | ErrorResponse::InvalidOperation(_) => {
                 (StatusCode::BAD_REQUEST, Json(self)).into_response()
             }
-            ErrorResponse::RynamodbError(_) => {
+            ErrorResponse::RynamodbError(_) | ErrorResponse::MutexUnlock => {
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(self)).into_response()
             }
         }
