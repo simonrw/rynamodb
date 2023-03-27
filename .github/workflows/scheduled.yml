@@ -7,6 +7,10 @@ on:
   schedule:
     - cron:  '7 7 * * *'
 name: rolling
+# cancel in-flight CI runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   # https://twitter.com/mycoliza/status/1571295690063753218
   nightly:
