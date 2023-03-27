@@ -48,7 +48,7 @@ impl serde::Serialize for ErrorResponse {
                 map.serialize_entry("error", "corrupted internal state")?;
             }
             Self::InvalidOperation(name) => {
-                map.serialize_entry("error", &format!("invalid response: {details}"))?;
+                map.serialize_entry("error", &format!("invalid response: {name}"))?;
             }
         }
         map.end()
