@@ -9,7 +9,7 @@ use tracing::Instrument;
 use axum::{
     extract::State,
     http::{HeaderMap, Method, Uri},
-    routing::any,
+    routing::{any, get},
     Json, Router,
 };
 
@@ -319,6 +319,7 @@ async fn handle_create_table(
 pub fn router() -> Router {
     let manager = table_manager::TableManager::default();
     Router::new()
+        .route("/_health", get(|| async { "ok" }))
         .fallback(any(handler))
         .with_state(Arc::new(RwLock::new(manager)))
 }

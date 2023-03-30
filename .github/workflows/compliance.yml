@@ -24,9 +24,7 @@ jobs:
         run: cargo generate-lockfile
       - uses: Swatinem/rust-cache@v2
       - name: Build
-        run: cargo build --release
-      - name: Run the server in the background
-        run: cargo run --release -- --port 8000 &
+        run: cargo build
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
