@@ -21,11 +21,12 @@ uuid = { version = "1.3.0", features = ["v4"] }
 chrono = { version = "0.4.24", features = ["serde"] }
 serde_dynamo = "4.1.0"
 clap = { version = "4.1.11", features = ["derive"] }
+reqwest = { version = "0.11.15", features = ["json", "rustls-tls"], default-features = false }
 
 [dev-dependencies]
 aws-config = "0.54.1"
 aws-sdk-dynamodb = "0.24.0"
-insta = { version = "1.29.0", features = ["redactions", "filters"] }
+insta = { version = "1.29.0", features = ["redactions", "filters", "json"] }
 
 [profile.release]
 opt-level = "z"
