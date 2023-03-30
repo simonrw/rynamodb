@@ -9,6 +9,11 @@
 # require the same fixture, it can be set up only once - while still allowing
 # the user to run individual tests and automatically set up the fixtures they need.
 
+import time
+import subprocess as sp
+from typing import Callable
+
+import requests
 import pytest
 import boto3
 from util import create_test_table
@@ -186,7 +191,6 @@ def test_table_s_2(dynamodb):
 
 
 @pytest.fixture(scope="session")
-@pytest.mark.xfail(strict=True, reason="B data type not implemented yet")
 def test_table_b(dynamodb):
     table = create_test_table(
         dynamodb,
@@ -200,7 +204,6 @@ def test_table_b(dynamodb):
 
 
 @pytest.fixture(scope="session")
-@pytest.mark.xfail(strict=True, reason="B data type not implemented yet")
 def test_table_sb(dynamodb):
     table = create_test_table(
         dynamodb,
@@ -218,7 +221,6 @@ def test_table_sb(dynamodb):
 
 
 @pytest.fixture(scope="session")
-@pytest.mark.xfail(strict=True, reason="N data type not implemented yet")
 def test_table_sn(dynamodb):
     table = create_test_table(
         dynamodb,
@@ -303,3 +305,36 @@ def filled_test_table(dynamodb):
 
     yield table, items
     table.delete()
+
+
+# rynamodb specific
+
+@pytest.fixture(scope="session", autouse=True)
+def start_server():
+    cmd = ["cargo", "run", "--", "-p", "8000"]
+    child = sp.Popen(cmd)
+
+    def fetch_health() -> bool:
+        url = "http://localhost:8000/_health"
+        try:
+            r = requests.get(url)
+            return r.content == b"ok"
+        except:
+            return False
+
+    # could take a while to compile
+    if not retry(fetch_health):
+        raise RuntimeError("could not start server")
+        
+    yield
+
+    child.terminate()
+
+def retry(check: Callable[[], bool], count: int = 100, sleep_time: float = 0.5) -> bool:
+    for _ in range(count):
+        if check():
+            return True
+        time.sleep(sleep_time)
+
+    return False
+
