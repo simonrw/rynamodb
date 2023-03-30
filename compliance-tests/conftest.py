@@ -191,7 +191,6 @@ def test_table_s_2(dynamodb):
 
 
 @pytest.fixture(scope="session")
-@pytest.mark.xfail(strict=True, reason="B data type not implemented yet")
 def test_table_b(dynamodb):
     table = create_test_table(
         dynamodb,
@@ -205,7 +204,6 @@ def test_table_b(dynamodb):
 
 
 @pytest.fixture(scope="session")
-@pytest.mark.xfail(strict=True, reason="B data type not implemented yet")
 def test_table_sb(dynamodb):
     table = create_test_table(
         dynamodb,
@@ -223,7 +221,6 @@ def test_table_sb(dynamodb):
 
 
 @pytest.fixture(scope="session")
-@pytest.mark.xfail(strict=True, reason="N data type not implemented yet")
 def test_table_sn(dynamodb):
     table = create_test_table(
         dynamodb,
