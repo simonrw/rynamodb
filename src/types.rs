@@ -20,6 +20,8 @@ where
 
     match buf.as_str() {
         "S" => Ok(AttributeType::S),
+        "B" => Ok(AttributeType::B),
+        "N" => Ok(AttributeType::N),
         // TODO
         s => Err(serde::de::Error::invalid_value(
             Unexpected::Str(s),
@@ -47,6 +49,8 @@ pub struct KeySchema {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum AttributeType {
     S,
+    B,
+    N,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
