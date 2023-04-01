@@ -49,6 +49,8 @@
               testPython
               ruff
               black
+              sqlite
+              rlwrap
             ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin darwin-packages;
 
             shellHook = ":";

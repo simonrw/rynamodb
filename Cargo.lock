@@ -1855,10 +1855,15 @@ version = "0.1.0"
 dependencies = [
  "askama",
  "axum",
+ "chrono",
+ "color-eyre",
+ "eyre",
  "serde",
  "serde_json",
  "sqlx",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 
