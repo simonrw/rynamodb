@@ -48,6 +48,12 @@ impl Database {
     }
 }
 
+#[derive(Clone)]
+pub struct AppState {
+    db: Database,
+    auth_token: String,
+}
+
 #[tokio::main]
 async fn main() {
     let _ = color_eyre::install();
@@ -56,7 +62,11 @@ async fn main() {
     let conn = SqlitePool::connect(concat!(env!("CARGO_MANIFEST_DIR"), "/db.db"))
         .await
         .expect("could not connect to database");
-    let state = Database::new(conn);
+    let db = Database::new(conn);
+    let state = AppState {
+        db,
+        auth_token: std::env::var("RYNAMODB_AUTH_TOKEN").expect("no auth token specified"),
+    };
 
     let app = Router::new()
         .route("/submit", post(handlers::submit_compliance_report))
