@@ -27,8 +27,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: cargo build --release
         run: cargo build --release --package rynamodb-compliance-tracker
-      - name: add artifact
-        uses: actions/upload-artifact@v3
+      - uses: marvinpinto/action-automatic-releases@latest
         with:
-          name: tracker
-          path: target/release/rynamodb-compliance-tracker
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: latest
+          prerelease: true
+          title: "RynamoDB Compliance Tracker"
+          files: |
+            target/release/rynamodb-compliance-tracker
