@@ -47,7 +47,7 @@ class Visitor(ContentHandler):
 
         now = datetime.now(tz=timezone.utc)
         payload = {
-            "branch": os.getenv("GITHUB_REF_NAME"),
+            "branch": os.getenv("GITHUB_HEAD_REF"),
             "commitSha": os.getenv("GITHUB_SHA"),
             "committer": os.getenv("GITHUB_ACTOR"),
             "errors": self.errors,
