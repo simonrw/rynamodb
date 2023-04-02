@@ -57,6 +57,7 @@ class Visitor(ContentHandler):
             "duration": self.time,
             "uploaded": now.isoformat(),
         }
+        print(f"Uploading {payload=}")
 
         headers = {
             "x-rynamodb-token": secret,
