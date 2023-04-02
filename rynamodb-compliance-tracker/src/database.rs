@@ -27,7 +27,10 @@ impl Database {
             .bind(payload.uploaded)
             .execute(&self.conn)
             .await
-            .wrap_err("inserting data into compliance table")?;
+            .map_err(|e| {
+                tracing::warn!(error = %e, "running SQL query");
+                e
+            }).wrap_err("running SQL query")?;
         Ok(())
     }
 
