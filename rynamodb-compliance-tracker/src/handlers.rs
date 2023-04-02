@@ -83,7 +83,10 @@ pub(crate) async fn submit_compliance_report(
     tracing::debug!(report = ?payload, "submitting compliance report");
     match db.insert(payload).await {
         Ok(_) => "submitted".into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => {
+            tracing::warn!(error = %e, "error inserting data");
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
+        }
     }
 }
 
