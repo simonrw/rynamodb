@@ -311,7 +311,7 @@ def filled_test_table(dynamodb):
 
 @pytest.fixture(scope="session", autouse=True)
 def start_server():
-    cmd = ["cargo", "run", "--", "-p", "8000"]
+    cmd = ["cargo", "run", "--bin", "rynamodb", "--", "-p", "8000"]
     child = sp.Popen(cmd)
 
     def fetch_health() -> bool:
