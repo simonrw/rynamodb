@@ -2,14 +2,16 @@ use std::net::SocketAddr;
 
 use axum::{routing::post, Router};
 use chrono::{DateTime, Utc};
-use eyre::WrapErr;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
+mod database;
 mod handlers;
 
+use crate::database::Database;
+
 #[derive(Debug, Deserialize)]
-struct ComplianceReport {
+pub struct ComplianceReport {
     branch: String,
     #[serde(rename = "commitSha")]
     commit_sha: String,
@@ -19,33 +21,6 @@ struct ComplianceReport {
     passed: i64,
     duration: f64,
     uploaded: DateTime<Utc>,
-}
-
-#[derive(Clone)]
-struct Database {
-    conn: SqlitePool,
-}
-
-impl Database {
-    pub fn new(conn: SqlitePool) -> Self {
-        Self { conn }
-    }
-
-    pub async fn insert(&self, payload: ComplianceReport) -> eyre::Result<()> {
-        sqlx::query("INSERT INTO compliance (branch, commitSha, errors, failed, skipped, passed, duration, uploaded) values ($1,$2,$3,$4,$5,$6,$7,$8)")
-            .bind(payload.branch)
-            .bind(payload.commit_sha)
-            .bind(payload.errors)
-            .bind(payload.failed)
-            .bind(payload.skipped)
-            .bind(payload.passed)
-            .bind(payload.duration)
-            .bind(payload.uploaded)
-            .execute(&self.conn)
-            .await
-            .wrap_err("inserting data into compliance table")?;
-        Ok(())
-    }
 }
 
 #[derive(Clone)]
