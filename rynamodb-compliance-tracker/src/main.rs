@@ -15,6 +15,7 @@ pub struct ComplianceReport {
     branch: String,
     #[serde(rename = "commitSha")]
     commit_sha: String,
+    committer: String,
     errors: i64,
     failed: i64,
     skipped: i64,

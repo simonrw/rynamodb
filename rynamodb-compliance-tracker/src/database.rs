@@ -14,9 +14,10 @@ impl Database {
     }
 
     pub async fn insert(&self, payload: ComplianceReport) -> eyre::Result<()> {
-        sqlx::query("INSERT INTO compliance (branch, commitSha, errors, failed, skipped, passed, duration, uploaded) values ($1,$2,$3,$4,$5,$6,$7,$8)")
+        sqlx::query("INSERT INTO compliance (branch, commitSha, committer, errors, failed, skipped, passed, duration, uploaded) values ($1,$2,$3,$4,$5,$6,$7,$8)")
             .bind(payload.branch)
             .bind(payload.commit_sha)
+            .bind(payload.committer)
             .bind(payload.errors)
             .bind(payload.failed)
             .bind(payload.skipped)
