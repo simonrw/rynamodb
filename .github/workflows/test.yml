@@ -86,7 +86,7 @@ jobs:
         run: cargo generate-lockfile
       - uses: Swatinem/rust-cache@v2
       - name: cargo llvm-cov
-        run: cargo llvm-cov --locked --all-features --lcov --output-path lcov.info
+        run: cargo llvm-cov --locked --all-features --lcov --output-path lcov.info --package rynamodb
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
