@@ -1,6 +1,9 @@
 use std::net::SocketAddr;
 
-use axum::{routing::post, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use serde::Deserialize;
@@ -57,6 +60,8 @@ async fn main() {
     };
 
     let app = Router::new()
+        .route("/", get(handlers::index))
+        .route("/branches/:branch", get(handlers::branch))
         .route("/submit", post(handlers::submit_compliance_report))
         .with_state(state);
 

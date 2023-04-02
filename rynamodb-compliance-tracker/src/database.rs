@@ -1,5 +1,6 @@
+use chrono::{DateTime, Utc};
 use eyre::WrapErr;
-use sqlx::SqlitePool;
+use sqlx::{sqlite::SqliteRow, Row, SqlitePool};
 
 use crate::ComplianceReport;
 
@@ -28,5 +29,27 @@ impl Database {
             .await
             .wrap_err("inserting data into compliance table")?;
         Ok(())
+    }
+
+    pub(crate) async fn fetch_branches(&self) -> eyre::Result<Vec<String>> {
+        let rows = sqlx::query("SELECT DISTINCT branch FROM compliance ORDER BY branch DESC")
+            .map(|row: SqliteRow| row.get("branch"))
+            .fetch_all(&self.conn)
+            .await
+            .wrap_err("fetching branches")?;
+        Ok(rows)
+    }
+
+    pub(crate) async fn fetch_compliance_history(
+        &self,
+        branch: String,
+    ) -> eyre::Result<Vec<(DateTime<Utc>, f64)>> {
+        let rows = sqlx::query("SELECT uploaded, passed * 100.0 / (passed + errors + failed + skipped) FROM compliance WHERE branch = $1")
+            .bind(&branch)
+            .map(|row: SqliteRow| (row.get(0), row.get(1)))
+            .fetch_all(&self.conn)
+            .await
+            .wrap_err("fetching compliance history")?;
+        Ok(rows)
     }
 }

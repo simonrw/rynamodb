@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<ul>
+	{% for entry in history %}
+	<li>{{ entry.0 }} - {{ entry.1 }} %</li>
+	{% endfor %}
+</ul>
+{% endblock content %}
