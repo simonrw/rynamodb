@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use axum::{routing::post, Router};
 use chrono::{DateTime, Utc};
+use clap::Parser;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
@@ -9,6 +10,15 @@ mod database;
 mod handlers;
 
 use crate::database::Database;
+
+#[derive(Parser)]
+struct Args {
+    #[clap(short, long)]
+    db_path: String,
+
+    #[clap(short, long, default_value = "9050")]
+    port: u16,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct ComplianceReport {
@@ -35,7 +45,9 @@ async fn main() {
     let _ = color_eyre::install();
     tracing_subscriber::fmt::init();
 
-    let conn = SqlitePool::connect(concat!(env!("CARGO_MANIFEST_DIR"), "/db.db"))
+    let args = Args::parse();
+
+    let conn = SqlitePool::connect(&args.db_path)
         .await
         .expect("could not connect to database");
     let db = Database::new(conn);
@@ -48,7 +60,7 @@ async fn main() {
         .route("/submit", post(handlers::submit_compliance_report))
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 9050));
+    let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
     eprintln!("listening on {addr}");
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
