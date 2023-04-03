@@ -27,13 +27,14 @@
         ];
 
         testPython = pkgs.python3.withPackages (ps: with ps; [
-          pytest
           boto3
-          requests
-          pytest-randomly
+          pynamodb
+          pytest
           pytest-instafail
-          pytest-xdist
+          pytest-randomly
           pytest-timeout
+          pytest-xdist
+          requests
         ]);
       in
       {
