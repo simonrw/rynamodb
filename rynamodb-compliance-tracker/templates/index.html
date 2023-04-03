@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<ul>
+	{% for branch in branches %}
+	<a href="/branches/{{ branch }}"><li>{{ branch }}</li></a>
+	{% endfor %}
+</ul>
+{% endblock content %}

@@ -34,5 +34,7 @@ jobs:
           pytest --timeout 30 --junit-xml report.xml compliance-tests || true
       - name: Summarise the results
         run: |
-          python ./scripts/compliance_report.py report.xml -o $GITHUB_STEP_SUMMARY
+          python ./scripts/compliance_report.py report.xml \
+            --post-secret "${{ secrets.COMPLIANCE_TRACKER_SECRET }}" \
+            -o $GITHUB_STEP_SUMMARY
 
