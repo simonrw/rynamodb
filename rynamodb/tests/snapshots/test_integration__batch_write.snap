@@ -1,0 +1,11 @@
+---
+source: rynamodb/tests/test_integration.rs
+expression: res
+---
+BatchWriteItemOutput {
+    unprocessed_items: Some(
+        {},
+    ),
+    item_collection_metrics: None,
+    consumed_capacity: None,
+}

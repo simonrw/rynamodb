@@ -3,7 +3,7 @@ use std::{collections::HashMap, future::Future, time::Duration};
 use aws_sdk_dynamodb::{
     model::{
         AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
-        ScalarAttributeType,
+        PutRequest, ScalarAttributeType, WriteRequest,
     },
     output::GetItemOutput,
     types::SdkError,
