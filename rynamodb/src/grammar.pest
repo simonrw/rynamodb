@@ -39,9 +39,9 @@ begins_with          = { "begins_with" ~ "(" ~ key ~ "," ~ value ~ ")" }
 contains             = { "contains" ~ "(" ~ path ~ "," ~ value ~ ")" }
 size                 = { "size" ~ "(" ~ path ~ ")" }
 
-column_name = @{ ASCII_ALPHA+ }
-key_placeholder = @{ "#" ~ ASCII_ALPHA+ }
-value_placeholder = @{ ":" ~ ASCII_ALPHA+ }
+column_name = @{ ASCII_ALPHANUMERIC+ }
+key_placeholder = @{ "#" ~ ASCII_ALPHANUMERIC+ }
+value_placeholder = @{ ":" ~ ASCII_ALPHANUMERIC+ }
 
 key = { key_placeholder | column_name }
 value = { value_placeholder | column_name }

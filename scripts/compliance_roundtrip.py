@@ -2,8 +2,10 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
+import json
+
 import boto3
-from boto3.dynamodb.conditions import Key, Attr
+from boto3.dynamodb.conditions import Key
 
 ENDPOINT_URL = "http://127.0.0.1:3050"
 dynamodb = boto3.resource("dynamodb", endpoint_url=ENDPOINT_URL)
@@ -79,10 +81,15 @@ batch.put_item(
     }
 )
 
+class Serializer(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        return super().default(o)
+
 # get the coverage for the main branch
-# Query does not work yet
 res = table.query(
     KeyConditionExpression=Key("branch").eq("main")
 )
 items = res["Items"]
-print(items)
+print(json.dumps(items, indent=2, cls=Serializer))
