@@ -1,9 +1,73 @@
 {% extends "base.html" %}
 
 {% block content %}
-<ul>
-	{% for entry in history %}
-	<li>{{ entry.0 }} - {{ entry.1 }} %</li>
+
+<div class="row">
+	<div class="col">
+		<div id="plot"></div>
+	</div>
+</div>
+
+<div id="x-data">
+	{% for every in history.0 %}
+		<div data-value="{{ every }}"></div>
 	{% endfor %}
-</ul>
+</div>
+
+<div id="y-data">
+	{% for every in history.1 %}
+		<div data-value="{{ every }}"></div>
+	{% endfor %}
+</div>
+
+<script src="https://cdn.plot.ly/plotly-2.20.0.min.js"></script>
+
+<script type="text/javascript">
+	const plotElem = document.getElementById("plot");
+
+	const fetchData = (id, convertFn) => {
+		elem = document.getElementById(id);
+		let out = [];
+		for (const child of elem.children) {
+			const valueStr = child.dataset.value;
+			if (convertFn) {
+				out.push(convertFn(valueStr));
+			} else {
+				out.push(valueStr);
+			}
+		};
+		return out;
+	};
+
+	const x = fetchData("x-data");
+	const y = fetchData("y-data", Number);
+
+	const plotData = { 
+		x,
+		y,
+		type: "scatter",
+	};
+	const layout = {
+		title: {
+			text: "Compliance for {{ branch }}",
+		},
+		xaxis: {
+			title: {
+				text: "Date",
+			},
+		},
+		yaxis: {
+			title: {
+				text: "Compliance [%]",
+			},
+		},
+	};
+	const config = {
+		responsive: true,
+	};
+
+	Plotly.newPlot(plotElem, [plotData], layout, config);
+
+</script>
+
 {% endblock content %}

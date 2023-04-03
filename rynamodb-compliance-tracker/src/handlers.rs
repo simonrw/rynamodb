@@ -54,17 +54,19 @@ pub(crate) async fn index(
 #[derive(Template)]
 #[template(path = "branch.html")]
 struct History {
-    history: Vec<(DateTime<Utc>, f64)>,
+    history: (Vec<DateTime<Utc>>, Vec<f64>),
+    branch: String,
 }
 
 pub(crate) async fn branch(
     Path(branch): Path<String>,
     State(crate::AppState { db, .. }): State<crate::AppState>,
 ) -> impl IntoResponse {
-    let compliance_history = db.fetch_compliance_history(branch).await.unwrap();
+    let compliance_history = db.fetch_compliance_history(&branch).await.unwrap();
 
     HtmlTemplate(History {
         history: compliance_history,
+        branch,
     })
     .into_response()
 }
