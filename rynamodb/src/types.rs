@@ -127,6 +127,7 @@ pub enum Response {
     DeleteTable(DeleteTableOutput),
     GetItem(GetItemOutput),
     ListTables(ListTablesOutput),
+    BatchWriteItem(BatchWriteItemOutput),
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -201,4 +202,57 @@ pub struct ScanOutput {
     pub items: Vec<HashMap<String, HashMap<String, String>>>,
     pub count: usize,
     pub scanned_count: usize,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct BatchWriteItemOutput {
+    pub unprocessed_items: Option<HashMap<String, Vec<BatchPutRequest>>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct BatchPutRequest {
+    pub put_request: BatchPutRequestItem,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct BatchPutRequestItem {
+    pub item: HashMap<String, AttributeValue>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct BatchWriteInput {
+    pub request_items: HashMap<String, Vec<BatchPutRequest>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // test parsing
+    #[test]
+    fn batch_write_item() {
+        let input = r#"
+        {
+            "RequestItems": {
+                "table-c8e7d653-20a2-4b24-9a62-bbae884a7e8c": [{
+                    "PutRequest": {
+                        "Item": {
+                            "sk": {
+                                "S": "def"
+                            },
+                            "pk": {
+                                "S": "abc"
+                            }
+                        }
+                    }
+                }]
+            }
+        }
+        "#;
+        let _: BatchWriteInput = serde_json::from_str(input).unwrap();
+    }
 }

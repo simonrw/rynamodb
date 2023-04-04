@@ -56,6 +56,7 @@ pub enum OperationType {
     GetItem,
     ListTables,
     Scan,
+    BatchWriteItem,
 }
 
 impl FromStr for OperationType {
@@ -71,6 +72,7 @@ impl FromStr for OperationType {
             "GetItem" => Ok(OperationType::GetItem),
             "ListTables" => Ok(OperationType::ListTables),
             "Scan" => Ok(OperationType::Scan),
+            "BatchWriteItem" => Ok(OperationType::BatchWriteItem),
             s => Err(format!("operation {s} not handled")),
         }
     }
@@ -110,12 +112,34 @@ pub async fn handler(
             OperationType::GetItem => handle_get_item(manager, body).await,
             OperationType::ListTables => handle_list_tables(manager, body).await,
             OperationType::Scan => handle_scan(manager, body).await,
+            OperationType::BatchWriteItem => handle_batch_write_item(manager, body).await,
         };
         tracing::info!(?res, "got result");
         res
     }
     .instrument(span)
     .await
+}
+
+async fn handle_batch_write_item(
+    manager: Arc<RwLock<table_manager::TableManager>>,
+    body: String,
+) -> Result<Json<types::Response>, ErrorResponse> {
+    tracing::debug!("handling batch write item");
+    let input: types::BatchWriteInput =
+        serde_json::from_str(&body).map_err(|_| ErrorResponse::SerializationError)?;
+    tracing::debug!(?input, "parsed input");
+
+    let mut unlocked_manager = manager.write().map_err(|_| ErrorResponse::MutexUnlock)?;
+    let unprocessed_items = unlocked_manager
+        .batch_write_item(input)
+        .expect("TODO: failed to batch write item");
+
+    Ok(Json(types::Response::BatchWriteItem(
+        types::BatchWriteItemOutput {
+            unprocessed_items: Some(unprocessed_items),
+        },
+    )))
 }
 
 async fn handle_scan(

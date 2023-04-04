@@ -88,6 +88,41 @@ impl TableManager {
         }
         Ok(())
     }
+
+    pub fn batch_write_item(
+        &mut self,
+        input: types::BatchWriteInput,
+    ) -> Result<HashMap<String, Vec<types::BatchPutRequest>>> {
+        let mut unprocessed_items: HashMap<String, Vec<_>> = HashMap::new();
+        for (table_name, put_request) in input.request_items.into_iter() {
+            match self.get_table_mut(&table_name) {
+                Some(table) => {
+                    for req in put_request {
+                        let item = req.put_request.item.clone();
+                        match table.insert(item.clone()) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                tracing::warn!(error = %e, "could not insert item");
+                                unprocessed_items
+                                    .entry(table_name.clone())
+                                    .or_default()
+                                    .push(req.clone());
+                            }
+                        }
+                    }
+                }
+                None => {
+                    for req in put_request {
+                        unprocessed_items
+                            .entry(table_name.clone())
+                            .or_default()
+                            .push(req.clone());
+                    }
+                }
+            }
+        }
+        Ok(unprocessed_items)
+    }
 }
 
 #[derive(Default)]

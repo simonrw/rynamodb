@@ -38,48 +38,46 @@ table = dynamodb.create_table(
 table.wait_until_exists()
 
 # insert some data
-# TODO: batch write not implemented
-batch = table
-# with table.batch_writer() as batch:
-batch.put_item(
-    Item={
-        "branch": "main",
-        "uploaded": datetime.now(tz=timezone.utc).isoformat(),
-        "errors": 10,
-        "failed": 3,
-        "skipped": 0,
-        "passed": 200,
-        "duration": Decimal("2.1"),
-        "commit-sha": "randomsha",
-        "committer": "jondoe",
-    }
-)
-batch.put_item(
-    Item={
-        "branch": "main",
-        "uploaded": datetime.now(tz=timezone.utc).isoformat(),
-        "errors": 9,
-        "failed": 2,
-        "skipped": 1,
-        "passed": 199,
-        "duration": Decimal("12.1"),
-        "commit-sha": "randomsha2",
-        "committer": "jondoe",
-    }
-)
-batch.put_item(
-    Item={
-        "branch": "main",
-        "uploaded": datetime.now(tz=timezone.utc).isoformat(),
-        "errors": 13,
-        "failed": 6,
-        "skipped": 3,
-        "passed": 203,
-        "duration": Decimal("42.1"),
-        "commit-sha": "randomsha3",
-        "committer": "jondoe",
-    }
-)
+with table.batch_writer() as batch:
+    batch.put_item(
+        Item={
+            "branch": "main",
+            "uploaded": datetime.now(tz=timezone.utc).isoformat(),
+            "errors": 10,
+            "failed": 3,
+            "skipped": 0,
+            "passed": 200,
+            "duration": Decimal("2.1"),
+            "commit-sha": "randomsha",
+            "committer": "jondoe",
+        }
+    )
+    batch.put_item(
+        Item={
+            "branch": "main",
+            "uploaded": datetime.now(tz=timezone.utc).isoformat(),
+            "errors": 9,
+            "failed": 2,
+            "skipped": 1,
+            "passed": 199,
+            "duration": Decimal("12.1"),
+            "commit-sha": "randomsha2",
+            "committer": "jondoe",
+        }
+    )
+    batch.put_item(
+        Item={
+            "branch": "main",
+            "uploaded": datetime.now(tz=timezone.utc).isoformat(),
+            "errors": 13,
+            "failed": 6,
+            "skipped": 3,
+            "passed": 203,
+            "duration": Decimal("42.1"),
+            "commit-sha": "randomsha3",
+            "committer": "jondoe",
+        }
+    )
 
 class Serializer(json.JSONEncoder):
     def default(self, o):

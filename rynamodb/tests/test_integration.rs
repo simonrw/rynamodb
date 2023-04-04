@@ -391,7 +391,6 @@ async fn delete_table() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn batch_write() -> Result<()> {
     test_init();
 
