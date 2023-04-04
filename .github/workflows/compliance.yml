@@ -24,7 +24,7 @@ jobs:
         run: cargo generate-lockfile
       - uses: Swatinem/rust-cache@v2
       - name: Build
-        run: cargo build
+        run: cargo build --package rynamodb
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -47,7 +47,7 @@ jobs:
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
       - name: Build the binary
-        run: cargo build -p rynamodb
+        run: cargo build --package rynamodb
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
