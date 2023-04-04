@@ -41,16 +41,19 @@ impl TableManager {
         let table = table::Table::new(region, &account_id, input.into());
 
         let entry = self.per_account.entry(account_id).or_default();
-        entry.tables.insert(region, table.clone());
+        entry.tables.entry(region).or_default().push(table.clone());
+        tracing::debug!(table_name = %table.name, "created table");
         Ok(table)
     }
 
     pub fn get_table(&self, table_name: &str) -> Option<&table::Table> {
         for account in self.per_account.values() {
-            for table in account.tables.values() {
-                tracing::trace!(created_table_name = %table.name, requested_table_name = %table_name, "checking table name");
-                if table.name == table_name {
-                    return Some(table);
+            for tables in account.tables.values() {
+                for table in tables {
+                    tracing::trace!(created_table_name = %table.name, requested_table_name = %table_name, "checking table name");
+                    if table.name == table_name {
+                        return Some(table);
+                    }
                 }
             }
         }
@@ -61,13 +64,20 @@ impl TableManager {
     }
 
     pub fn get_table_mut(&mut self, table_name: &str) -> Option<&mut table::Table> {
+        let mut count = 0;
         for account in self.per_account.values_mut() {
-            for table in account.tables.values_mut() {
-                if table.name == table_name {
-                    return Some(table);
+            for tables in account.tables.values_mut() {
+                for table in tables {
+                    tracing::trace!(created_table_name = %table.name, requested_table_name = %table_name, "checking table name");
+                    if table.name == table_name {
+                        return Some(table);
+                    }
+                    count += 1;
                 }
             }
         }
+
+        tracing::debug!(%table_name, checked = %count, "could not find table");
 
         None
     }
@@ -75,8 +85,10 @@ impl TableManager {
     pub fn table_names(&self) -> Vec<String> {
         let mut table_names = Vec::new();
         for account in self.per_account.values() {
-            for table in account.tables.values() {
-                table_names.push(table.name.clone());
+            for tables in account.tables.values() {
+                for table in tables {
+                    table_names.push(table.name.clone());
+                }
             }
         }
         table_names
@@ -97,6 +109,7 @@ impl TableManager {
         for (table_name, put_request) in input.request_items.into_iter() {
             match self.get_table_mut(&table_name) {
                 Some(table) => {
+                    tracing::debug!(%table_name, "got table");
                     for req in put_request {
                         let item = req.put_request.item.clone();
                         match table.insert(item.clone()) {
@@ -112,6 +125,7 @@ impl TableManager {
                     }
                 }
                 None => {
+                    tracing::warn!(%table_name, "could not find table");
                     for req in put_request {
                         unprocessed_items
                             .entry(table_name.clone())
@@ -123,17 +137,34 @@ impl TableManager {
         }
         unprocessed_items
     }
+
+    pub fn len(&self) -> usize {
+        let mut count = 0;
+        for account in self.per_account.values() {
+            count += account.tables.len();
+        }
+        count
+    }
 }
 
 #[derive(Default)]
 pub struct TablesPerRegion {
     // map from region to table
-    pub tables: HashMap<Region, table::Table>,
+    pub tables: HashMap<Region, Vec<table::Table>>,
 }
 
 impl TablesPerRegion {
     fn remove(&mut self, table_name: &str) {
-        self.tables
-            .retain(|_region, table| table.name != table_name);
+        // wow inefficient...
+        let mut new = HashMap::new();
+        for (region, tables) in self.tables.iter() {
+            let new_tables: Vec<_> = tables
+                .iter()
+                .cloned()
+                .filter(|table| table.name != table_name)
+                .collect();
+            new.insert(region.clone(), new_tables);
+        }
+        self.tables = new;
     }
 }
