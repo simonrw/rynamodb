@@ -264,7 +264,6 @@ def test_table_ss(dynamodb):
 # This fixture returns both a table object and the description of all items
 # inserted into it.
 @pytest.fixture(scope="session")
-@pytest.mark.xfail(strict=True, reason="batch writing not supported yet")
 def filled_test_table(dynamodb):
     table = create_test_table(
         dynamodb,

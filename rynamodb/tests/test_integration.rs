@@ -3,7 +3,7 @@ use std::{collections::HashMap, future::Future, time::Duration};
 use aws_sdk_dynamodb::{
     model::{
         AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
-        ScalarAttributeType,
+        PutRequest, ScalarAttributeType, WriteRequest,
     },
     output::GetItemOutput,
     types::SdkError,
@@ -388,6 +388,38 @@ async fn delete_table() {
     })
     .await
     .unwrap();
+}
+
+#[tokio::test]
+async fn batch_write() -> Result<()> {
+    test_init();
+
+    with_table(|table_name, client| {
+        Box::new(Box::pin(async move {
+            let write_request = WriteRequest::builder()
+                .put_request(
+                    PutRequest::builder()
+                        .item("pk", AttributeValue::S("abc".to_string()))
+                        .item("sk", AttributeValue::S("def".to_string()))
+                        .build(),
+                )
+                .build();
+
+            let res = client
+                .batch_write_item()
+                .request_items(table_name, vec![write_request])
+                .send()
+                .await
+                .wrap_err("inserting item")?;
+
+            let result = std::panic::catch_unwind(|| {
+                insta::assert_debug_snapshot!(res);
+            });
+
+            result.map_err(|e| eyre::eyre!("snapshot did not match: {e:?}"))
+        }))
+    })
+    .await
 }
 
 #[tokio::test]
