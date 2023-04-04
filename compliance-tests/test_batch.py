@@ -11,8 +11,6 @@ import random
 from botocore.exceptions import ClientError
 from util import random_string, full_query, multiset
 
-pytestmark = [pytest.mark.xfail(strict=True, reason="batch writing not supported yet")]
-
 # Test ensuring that items inserted by a batched statement can be properly extracted
 # via GetItem. Schema has both hash and sort keys.
 def test_basic_batch_write_item(test_table):
