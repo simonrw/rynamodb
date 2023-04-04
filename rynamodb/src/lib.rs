@@ -131,9 +131,7 @@ async fn handle_batch_write_item(
     tracing::debug!(?input, "parsed input");
 
     let mut unlocked_manager = manager.write().map_err(|_| ErrorResponse::MutexUnlock)?;
-    let unprocessed_items = unlocked_manager
-        .batch_write_item(input)
-        .expect("TODO: failed to batch write item");
+    let unprocessed_items = unlocked_manager.batch_write_item(input);
 
     Ok(Json(types::Response::BatchWriteItem(
         types::BatchWriteItemOutput {

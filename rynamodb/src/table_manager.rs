@@ -92,7 +92,7 @@ impl TableManager {
     pub fn batch_write_item(
         &mut self,
         input: types::BatchWriteInput,
-    ) -> Result<HashMap<String, Vec<types::BatchPutRequest>>> {
+    ) -> HashMap<String, Vec<types::BatchPutRequest>> {
         let mut unprocessed_items: HashMap<String, Vec<_>> = HashMap::new();
         for (table_name, put_request) in input.request_items.into_iter() {
             match self.get_table_mut(&table_name) {
@@ -121,7 +121,7 @@ impl TableManager {
                 }
             }
         }
-        Ok(unprocessed_items)
+        unprocessed_items
     }
 }
 
