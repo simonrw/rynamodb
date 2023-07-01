@@ -23,6 +23,9 @@ serde_dynamo = "4.2.3"
 clap = { version = "4.1.11", features = ["derive"] }
 reqwest = { version = "0.11.15", features = ["json", "rustls-tls"], default-features = false }
 
+# pin versions of transient dependencies because of nightly build failures
+proc-macro2 = "1.0.60"
+
 [dev-dependencies]
 aws-config = "0.54.1"
 aws-sdk-dynamodb = "0.24.0"
