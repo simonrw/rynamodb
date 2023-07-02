@@ -42,7 +42,7 @@
           default = rust-dev;
           rust-dev = pkgs.mkShell {
             buildInputs = with pkgs; [
-              rust-bin.beta.latest.default
+              rustup
               rust-analyzer
               clippy
               cargo-insta
