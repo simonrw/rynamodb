@@ -5,6 +5,9 @@
 
 # DynamoDB emulation layer in Rust
 
+> [!WARNING]
+> This repository has been archived as I have moved on to other projects. This code is a proof of concept only.
+
 ## Installation
 
 Install the binary with `cargo` (the only supported solution for now, sorry).
